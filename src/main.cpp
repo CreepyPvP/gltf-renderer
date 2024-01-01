@@ -27,6 +27,21 @@
 struct Material
 {
     glm::vec4 color;
+    u32 texture;
+};
+
+struct Primitive 
+{
+    u32 vao;
+    u32 index_count;
+    u32 index_type;
+    u32 material;
+};
+
+struct Mesh
+{
+    Primitive* primitives;
+    u32 primitive_count;
 };
 
 const u32 width = 1280;
@@ -36,12 +51,7 @@ GLFWwindow *window;
 
 Arena asset_arena;
 
-u32 test_vao;
-u32 test_index_count;
-u32 test_type;
-u32 test_material;
-u32 test_texture;
-
+Mesh* meshes;
 Material* materials;
 
 void resize_callback(GLFWwindow *window, i32 width, i32 height) 
@@ -51,31 +61,6 @@ void resize_callback(GLFWwindow *window, i32 width, i32 height)
 void mouse_callback(GLFWwindow* window, double pos_x, double pos_y) 
 {
 }
-
-// u32 load_texture(const char* file)
-// {
-//     u32 texture;
-//     glGenTextures(1, &texture);
-//
-//     glBindTexture(GL_TEXTURE_2D, texture);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-//
-//     i32 width, height, nr_channels;
-//     u8 *data = stbi_load(file, &width, &height, &nr_channels, 0);
-//     if (data) {
-//         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-//         glGenerateMipmap(GL_TEXTURE_2D);
-//
-//         stbi_image_free(data);
-//     } else {
-//         printf("Failed to load texture: %s\n", file);
-//     }
-//
-//     return texture;
-// }
 
 void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
 {
@@ -92,7 +77,6 @@ void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
             // TODO: Fix this
             Object object;
             object.render.mesh = 0;
-            object.render.material = 0;
             object.transform.pos = glm::vec3(0.0f, 0.0f, 0.0f);
             object.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
             object.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -138,6 +122,17 @@ void load_scene(Scene* scene, const char* file)
     fastgltf::Scene* scn = asset->scenes.data() + scene_to_load;
     printf("Loading Scene: %u\n", scene_to_load);
 
+    // load materials
+    u32 material_count = asset->materials.size();
+    materials = (Material*) push_size(&asset_arena, sizeof(Material) * material_count);
+    for (u32 i = 0; i < material_count; ++i) {
+        fastgltf::Material* material = asset->materials.data() + i;
+        materials[i].color = glm::vec4(material->pbrData.baseColorFactor[0],
+                                       material->pbrData.baseColorFactor[1],
+                                       material->pbrData.baseColorFactor[2],
+                                       material->pbrData.baseColorFactor[3]);
+    }
+
     // textures
     u32 texture_count = asset->textures.size();
     u32* textures = (u32*) push_size(&arena, sizeof(u32) * texture_count);
@@ -179,18 +174,7 @@ void load_scene(Scene* scene, const char* file)
 
         stbi_image_free(data);
 
-        test_texture = texture;
-    }
-
-    // load materials
-    u32 material_count = asset->materials.size();
-    materials = (Material*) push_size(&asset_arena, sizeof(Material) * material_count);
-    for (u32 i = 0; i < material_count; ++i) {
-        fastgltf::Material* material = asset->materials.data() + i;
-        materials[i].color = glm::vec4(material->pbrData.baseColorFactor[0],
-                                       material->pbrData.baseColorFactor[1],
-                                       material->pbrData.baseColorFactor[2],
-                                       material->pbrData.baseColorFactor[3]);
+        materials[0].texture = textures[i];
     }
 
     // retrieve buffer pointer
@@ -226,8 +210,15 @@ void load_scene(Scene* scene, const char* file)
                      GL_STATIC_DRAW);
     }
 
-    for (u32 i = 0; i < asset->meshes.size(); ++i) {
+    u32 mesh_count = asset->meshes.size();
+    meshes = (Mesh*) push_size(&asset_arena, sizeof(Mesh) * mesh_count);
+    for (u32 i = 0; i < mesh_count; ++i) {
         fastgltf::Mesh* mesh = asset->meshes.data() + i;
+
+        u32 primitive_count = mesh->primitives.size();
+        meshes[i].primitive_count = primitive_count;
+        meshes[i].primitives = (Primitive*) push_size(&asset_arena, 
+                                                      sizeof(Primitive) * primitive_count);
         for (u32 j = 0; j < mesh->primitives.size(); ++j) {
             fastgltf::Primitive* prim = mesh->primitives.data() + j;
 
@@ -252,10 +243,16 @@ void load_scene(Scene* scene, const char* file)
             if (!index_view->target.has_value()) {
                 continue;
             }
-            
-            test_type = (u32) fastgltf::getGLComponentType(index_accessor->componentType);
-            test_index_count = index_accessor->count;
+
             glBindBuffer((u32) index_view->target.value(), gpu_buffers[index_view_index]);
+            
+            meshes[i].primitives[j].index_type = 
+                (u32) fastgltf::getGLComponentType(index_accessor->componentType);
+            meshes[i].primitives[j].index_count = index_accessor->count;
+            meshes[i].primitives[j].vao = vao;
+
+            meshes[i].primitives[j].material = prim->materialIndex.has_value()? 
+                prim->materialIndex.value() : 0;
 
             for (u32 k = 0; k < attrib_count; ++k) {
                 u32 accessor_index = prim->attributes[k].second;
@@ -287,10 +284,6 @@ void load_scene(Scene* scene, const char* file)
                                       stride,
                                       (void*) accessor->byteOffset);
             }
-            u32 material = prim->materialIndex.has_value()? prim->materialIndex.value() : 0;
-            test_material = material;
-
-            test_vao = vao;
         }
 
     }
@@ -361,22 +354,32 @@ i32 main(i32 argc, char** argv)
 
     glUseProgram(shader.id);
     set_mat4(shader.u_proj_view, &proj_view);
-    set_vec4(shader.u_mat_color, &materials[0].color);
-
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, test_texture);
+    glBindTexture(GL_TEXTURE_2D, materials[0].texture);
+    set_vec4(shader.u_mat_color, &materials[0].color);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, true);
         }
 
+        float time = glfwGetTime();
+
         scene_update(&scene);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glm::mat4 model = glm::rotate(glm::mat4(1.0f), 
+                                      glm::radians(90.0f * time), 
+                                      glm::vec3(0.0f, 1.0f, 0.0f));
 
-        glBindVertexArray(test_vao);
-        glDrawElements(GL_TRIANGLES, 36, test_type, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        set_mat4(shader.u_model, &model);
+
+        for (u32 i = 0; i < meshes[0].primitive_count; ++i) {
+            Primitive* prim = meshes[0].primitives + i;
+
+            glBindVertexArray(prim->vao);
+            glDrawElements(GL_TRIANGLES, prim->index_count, prim->index_type, 0);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();

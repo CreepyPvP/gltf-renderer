@@ -2,13 +2,13 @@ Fix type                                    (done)
 Fix target (GL_ELEMENT_ARRAY_BUFFER)        (done)
 Basic material                              (done)
 Multiple nodes
-Multiple primitives
+Multiple primitives                         (done)
 Transform
 Push to github
 
 Basic pbr rendering (metallic, roughness, etc ...)
 
-Diffuse textures
+Diffuse textures                            (done)
 
 (probably need shader generator here??)
 

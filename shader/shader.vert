@@ -8,10 +8,10 @@ out vec3 out_norm;
 out vec2 out_uv;
 
 uniform mat4 proj_view;
-// uniform mat4 model;
+uniform mat4 model;
 
 void main() {
-    out_norm = normalize(aNorm);
+    out_norm = normalize((model * vec4(aNorm, 1)).xyz);
     out_uv = aUv;
-    gl_Position = proj_view * vec4(aPos, 1);
+    gl_Position = proj_view * model * vec4(aPos, 1);
 }

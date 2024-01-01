@@ -7,7 +7,6 @@
 struct Renderable
 {
     u32 mesh;
-    u32 material;
 };
 
 struct Transform
