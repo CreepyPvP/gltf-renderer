@@ -9,10 +9,31 @@
 #include "include/arena.h"
 #include "include/utils.h"
 
-u32 create_shader(const char* vertex_file, const char* frag_file)
+void append_str(char* dst, char* str) 
+{
+    char* ptr = dst;
+    while (*ptr) {
+        ptr++;
+    }
+    while (*str) {
+        *ptr = *str;
+        ptr++;
+        str++;
+    } 
+}
+
+u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
 {
     Arena arena;
     init_arena(&arena, &pool);
+
+    char shader_header[512] = {};
+    append_str(shader_header, "#version 440\n");
+    if (flags & SHADER_DIFFUSE_TEXTURE) {
+        append_str(shader_header, "#define USE_DIFFUSE_TEXTURE\n");
+    }
+
+    char* sources[2] = {shader_header};
 
     char info_log[512];
     i32 status;
@@ -22,7 +43,8 @@ u32 create_shader(const char* vertex_file, const char* frag_file)
         exit(1);
     }
     u32 vertex_prog = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_prog, 1, &vertex_code, NULL);
+    sources[1] = vertex_code;
+    glShaderSource(vertex_prog, 2, sources, NULL);
     glCompileShader(vertex_prog);
     glGetShaderiv(vertex_prog, GL_COMPILE_STATUS, &status);
     if (!status) {
@@ -36,7 +58,8 @@ u32 create_shader(const char* vertex_file, const char* frag_file)
         exit(1);
     }
     u32 frag_prog = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(frag_prog, 1, &frag_code, NULL);
+    sources[1] = frag_code;
+    glShaderSource(frag_prog, 2, sources, NULL);
     glCompileShader(frag_prog);
     glGetShaderiv(frag_prog, GL_COMPILE_STATUS, &status);
     if(!status) {
@@ -62,10 +85,10 @@ u32 create_shader(const char* vertex_file, const char* frag_file)
     return shader;
 }
 
-MaterialShader load_shader(const char* vert, const char* frag)
+MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
 {
     MaterialShader shader;
-    shader.id = create_shader(vert, frag);
+    shader.id = create_shader(vert, frag, flags);
     shader.u_proj_view = glGetUniformLocation(shader.id, "proj_view");
     shader.u_model = glGetUniformLocation(shader.id, "model");
     shader.u_mat_color = glGetUniformLocation(shader.id, "mat_color");

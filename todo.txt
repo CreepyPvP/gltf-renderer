@@ -2,9 +2,10 @@ Fix type                                    (done)
 Fix target (GL_ELEMENT_ARRAY_BUFFER)        (done)
 Basic material                              (done)
 Multiple nodes
+Read correct transform for node
 Multiple primitives                         (done)
-Transform
-Push to github
+Transform                                   (done)
+Push to github                              (done)
 
 Basic pbr rendering (metallic, roughness, etc ...)
 

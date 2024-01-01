@@ -328,7 +328,9 @@ i32 main(i32 argc, char** argv)
     Scene scene;
     init_scene(&scene);
 
-    MaterialShader shader = load_shader("shader/shader.vert", "shader/shader.frag");
+    MaterialShader shader = load_shader("shader/shader.vert", 
+                                        "shader/shader.frag", 
+                                        SHADER_DIFFUSE_TEXTURE);
 
     const char* scene_file;
     if (argc > 1) {
