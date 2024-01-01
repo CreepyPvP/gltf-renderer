@@ -29,7 +29,7 @@ u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
 
     char shader_header[512] = {};
     append_str(shader_header, "#version 440\n");
-    if (flags & SHADER_DIFFUSE_TEXTURE) {
+    if (flags & MATERIAL_DIFFUSE_TEXTURE) {
         append_str(shader_header, "#define USE_DIFFUSE_TEXTURE\n");
     }
 

@@ -3,7 +3,7 @@
 #include "include/defines.h"
 #include <glm/mat4x4.hpp>
 
-#define SHADER_DIFFUSE_TEXTURE 1 << 0
+#define MATERIAL_DIFFUSE_TEXTURE 1 << 0
 
 struct MaterialShader
 {

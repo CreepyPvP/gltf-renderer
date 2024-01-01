@@ -28,6 +28,9 @@ struct Material
 {
     glm::vec4 color;
     u32 texture;
+    u32 flags;
+
+    u32 diffuse_texture;
 };
 
 struct Primitive 
@@ -53,6 +56,7 @@ Arena asset_arena;
 
 Mesh* meshes;
 Material* materials;
+u32* textures;
 
 void resize_callback(GLFWwindow *window, i32 width, i32 height) 
 {
@@ -127,15 +131,20 @@ void load_scene(Scene* scene, const char* file)
     materials = (Material*) push_size(&asset_arena, sizeof(Material) * material_count);
     for (u32 i = 0; i < material_count; ++i) {
         fastgltf::Material* material = asset->materials.data() + i;
+        materials[i].flags = 0;
         materials[i].color = glm::vec4(material->pbrData.baseColorFactor[0],
                                        material->pbrData.baseColorFactor[1],
                                        material->pbrData.baseColorFactor[2],
                                        material->pbrData.baseColorFactor[3]);
+        if (material->pbrData.baseColorTexture.has_value()) {
+            materials[i].diffuse_texture = material->pbrData.baseColorTexture.value().textureIndex;
+            materials[i].flags |= MATERIAL_DIFFUSE_TEXTURE;
+        }
     }
 
     // textures
     u32 texture_count = asset->textures.size();
-    u32* textures = (u32*) push_size(&arena, sizeof(u32) * texture_count);
+    textures = (u32*) push_size(&arena, sizeof(u32) * texture_count);
     glGenTextures(texture_count, textures);
     for (u32 i = 0; i < texture_count; ++i) {
         fastgltf::Texture* texture = asset->textures.data() + i;
@@ -328,10 +337,6 @@ i32 main(i32 argc, char** argv)
     Scene scene;
     init_scene(&scene);
 
-    MaterialShader shader = load_shader("shader/shader.vert", 
-                                        "shader/shader.frag", 
-                                        SHADER_DIFFUSE_TEXTURE);
-
     const char* scene_file;
     if (argc > 1) {
         scene_file = argv[1];
@@ -340,6 +345,12 @@ i32 main(i32 argc, char** argv)
     }
     printf("Loading scene: %s\n", scene_file);
     load_scene(&scene, scene_file);
+
+    Material material = materials[0];
+
+    MaterialShader shader = load_shader("shader/shader.vert", 
+                                        "shader/shader.frag", 
+                                        material.flags);
 
 
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
@@ -356,9 +367,12 @@ i32 main(i32 argc, char** argv)
 
     glUseProgram(shader.id);
     set_mat4(shader.u_proj_view, &proj_view);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, materials[0].texture);
-    set_vec4(shader.u_mat_color, &materials[0].color);
+
+    set_vec4(shader.u_mat_color, &material.color);
+    if (material.flags & MATERIAL_DIFFUSE_TEXTURE) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textures[material.diffuse_texture]);
+    }
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
