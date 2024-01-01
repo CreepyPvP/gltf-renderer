@@ -9,6 +9,7 @@ struct MaterialShader
     u32 u_proj_view;
     u32 u_model;
     u32 u_mat_color;
+    u32 u_mat_diffuse;
 };
 
 u32 create_shader(const char* vertex_file, const char* frag_file);

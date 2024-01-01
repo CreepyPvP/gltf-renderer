@@ -3,6 +3,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "include/stb_image.h"
+
 #include <math.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -21,12 +24,6 @@
 #include "include/arena.h"
 #include "include/scene.h"
 
-struct String
-{
-    char* ptr;
-    u32 len;
-};
-
 struct Material
 {
     glm::vec4 color;
@@ -43,6 +40,7 @@ u32 test_vao;
 u32 test_index_count;
 u32 test_type;
 u32 test_material;
+u32 test_texture;
 
 Material* materials;
 
@@ -109,9 +107,9 @@ void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
     }
 }
 
-void load_scene(Scene* scene, const String* file)
+void load_scene(Scene* scene, const char* file)
 {
-    std::filesystem::path path = file->ptr;
+    std::filesystem::path path = file;
 
     fastgltf::Parser parser;
     fastgltf::GltfDataBuffer data;
@@ -119,10 +117,11 @@ void load_scene(Scene* scene, const String* file)
 
     fastgltf::Expected<fastgltf::Asset> result = parser.loadGLTF(&data, 
                                                     path.parent_path(), 
-                                                    fastgltf::Options::LoadExternalBuffers);
+                                                    fastgltf::Options::LoadExternalBuffers |
+                                                    fastgltf::Options::LoadExternalImages);
     auto error = result.error();
     if (error !=  fastgltf::Error::None) {
-        printf("Failed to load %s\n", file->ptr);
+        printf("Failed to load %s\n", file);
         exit(1);
     }
 
@@ -139,16 +138,48 @@ void load_scene(Scene* scene, const String* file)
     fastgltf::Scene* scn = asset->scenes.data() + scene_to_load;
     printf("Loading Scene: %u\n", scene_to_load);
 
-    // images
-    u32 image_count = asset->images.size();
-    for (u32 i = 0; i < image_count; ++i) {
-        fastgltf::Image* image = asset->images.data() + i;
+    // textures
+    u32 texture_count = asset->textures.size();
+    u32* textures = (u32*) push_size(&arena, sizeof(u32) * texture_count);
+    glGenTextures(texture_count, textures);
+    for (u32 i = 0; i < texture_count; ++i) {
+        fastgltf::Texture* texture = asset->textures.data() + i;
 
-        fastgltf::sources::URI* ptr = std::get_if<fastgltf::sources::URI>(&image->data);
+        if (!texture->imageIndex.has_value()) {
+            printf("Texture has no image index\n");
+            continue;
+        }
+        u32 image_index = texture->imageIndex.value();
+
+        fastgltf::Image* image = asset->images.data() + image_index;
+        fastgltf::sources::Vector* ptr = std::get_if<fastgltf::sources::Vector>(&image->data);
         if (!ptr) {
             printf("Image uses not implemented data source\n");
+            continue;
         }
-        printf("Need to load image: %s\n", ptr->uri.uri.c_str());
+        i32 width;
+        i32 height;
+        i32 nu_channels;
+        u8* data = stbi_load_from_memory(ptr->bytes.data(), ptr->bytes.size(), 
+                                         &width, &height, &nu_channels, 0);
+
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
+        // TODO: read sampler info here
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        i32 format = GL_RGBA;
+        if (nu_channels == 3) {
+            format = GL_RGB;
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        stbi_image_free(data);
+
+        test_texture = texture;
     }
 
     // load materials
@@ -310,7 +341,7 @@ i32 main(i32 argc, char** argv)
     if (argc > 1) {
         scene_file = argv[1];
     } else {
-        scene_file = "../assets/2.0/Box/glTF/Box.gltf";
+        scene_file = "../assets/2.0/BoxTextured/glTF/BoxTextured.gltf";
     }
     printf("Loading scene: %s\n", scene_file);
     load_scene(&scene, scene_file);
@@ -331,6 +362,9 @@ i32 main(i32 argc, char** argv)
     glUseProgram(shader.id);
     set_mat4(shader.u_proj_view, &proj_view);
     set_vec4(shader.u_mat_color, &materials[0].color);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, test_texture);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
