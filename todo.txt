@@ -11,7 +11,9 @@ Basic pbr rendering (metallic, roughness, etc ...)
 
 Diffuse textures                            (done)
 
-(probably need shader generator here??)
+(probably need shader generator here??)     (done)
+
+Shader managment
 
 Normal textures
 Specular textures

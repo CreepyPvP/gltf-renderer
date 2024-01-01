@@ -27,7 +27,6 @@
 struct Material
 {
     glm::vec4 color;
-    u32 texture;
     u32 flags;
 
     u32 diffuse_texture;
@@ -144,7 +143,7 @@ void load_scene(Scene* scene, const char* file)
 
     // textures
     u32 texture_count = asset->textures.size();
-    textures = (u32*) push_size(&arena, sizeof(u32) * texture_count);
+    textures = (u32*) push_size(&asset_arena, sizeof(u32) * texture_count);
     glGenTextures(texture_count, textures);
     for (u32 i = 0; i < texture_count; ++i) {
         fastgltf::Texture* texture = asset->textures.data() + i;
@@ -174,16 +173,20 @@ void load_scene(Scene* scene, const char* file)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        i32 format = GL_RGBA;
-        if (nu_channels == 3) {
+        i32 format;
+        if (nu_channels == 4) {
+            format = GL_RGBA;
+        } else if (nu_channels == 3) {
             format = GL_RGB;
+        } else {
+            printf("Unknown texture format\n");
+            exit(1);
         }
+
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
         stbi_image_free(data);
-
-        materials[0].texture = textures[i];
     }
 
     // retrieve buffer pointer
@@ -208,10 +211,21 @@ void load_scene(Scene* scene, const char* file)
     glGenBuffers(buffer_view_count, gpu_buffers);
     for (u32 i = 0; i < buffer_view_count; ++i) {
         fastgltf::BufferView* view = asset->bufferViews.data() + i;
+
+        u32 target;
         if (!view->target.has_value()) {
-            continue;
+            printf("No target defined for buffer view, guessing.\n");
+            
+            // TODO: implement usage guessing
+            if (i == 3) {
+                target = GL_ELEMENT_ARRAY_BUFFER;
+            }
+            else {
+                target = GL_ARRAY_BUFFER;
+            }
+        } else {
+            target = (u32) view->target.value();
         }
-        u32 target = (u32) view->target.value();
 
         glBindBuffer(target, gpu_buffers[i]);
         glBufferData(target, view->byteLength, 
@@ -234,6 +248,7 @@ void load_scene(Scene* scene, const char* file)
             u32 attrib_count = prim->attributes.size();
 
             if (!prim->indicesAccessor.has_value()) {
+                printf("No index accessor for primitive\n");
                 continue;
             }
             u32 index_acc_id = prim->indicesAccessor.value();
@@ -249,11 +264,7 @@ void load_scene(Scene* scene, const char* file)
             u32 index_view_index = index_accessor->bufferViewIndex.value();
             fastgltf::BufferView* index_view =  asset->bufferViews.data() + index_view_index;
 
-            if (!index_view->target.has_value()) {
-                continue;
-            }
-
-            glBindBuffer((u32) index_view->target.value(), gpu_buffers[index_view_index]);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpu_buffers[index_view_index]);
             
             meshes[i].primitives[j].index_type = 
                 (u32) fastgltf::getGLComponentType(index_accessor->componentType);
@@ -276,22 +287,18 @@ void load_scene(Scene* scene, const char* file)
                 u32 buffer_view_index = accessor->bufferViewIndex.value();
                 fastgltf::BufferView* buffer_view = asset->bufferViews.data() + buffer_view_index;
 
-                if (!buffer_view->target.has_value()) {
-                    continue;
-                }
                 u32 stride = 0;
-                std::optional byte_stride_opt = buffer_view->byteStride;
-                if (byte_stride_opt.has_value()) {
+                if (buffer_view->byteStride.has_value()) {
                     stride = buffer_view->byteStride.value();
                 }
 
-                glBindBuffer((GLenum) buffer_view->target.value(), gpu_buffers[buffer_view_index]);
+                glBindBuffer(GL_ARRAY_BUFFER, gpu_buffers[buffer_view_index]);
                 glEnableVertexAttribArray(k);
                 glVertexAttribPointer(k, num_components, 
                                       GL_FLOAT, 
                                       GL_FALSE, 
                                       stride,
-                                      (void*) accessor->byteOffset);
+                                      0);
             }
         }
 
@@ -341,7 +348,7 @@ i32 main(i32 argc, char** argv)
     if (argc > 1) {
         scene_file = argv[1];
     } else {
-        scene_file = "../assets/2.0/BoxTextured/glTF/BoxTextured.gltf";
+        scene_file = "../assets/2.0/MetalBox/glTF/MetalBox.gltf";
     }
     printf("Loading scene: %s\n", scene_file);
     load_scene(&scene, scene_file);
@@ -394,7 +401,10 @@ i32 main(i32 argc, char** argv)
             Primitive* prim = meshes[0].primitives + i;
 
             glBindVertexArray(prim->vao);
-            glDrawElements(GL_TRIANGLES, prim->index_count, prim->index_type, 0);
+            glDrawElements(GL_TRIANGLES, 
+                           prim->index_count, 
+                           prim->index_type, 
+                           0);
         }
 
         glfwSwapBuffers(window);
