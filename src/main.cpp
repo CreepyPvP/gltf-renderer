@@ -1,0 +1,353 @@
+#include "include/defines.h"
+
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+#include <math.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <vector>
+#include <variant>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <fastgltf/parser.hpp>
+#include <fastgltf/types.hpp>
+
+#include "include/shader.h"
+#include "include/arena.h"
+#include "include/scene.h"
+
+struct String
+{
+    char* ptr;
+    u32 len;
+};
+
+struct Material
+{
+    glm::vec4 color;
+};
+
+const u32 width = 1280;
+const u32 height = 720;
+
+GLFWwindow *window;
+
+Arena asset_arena;
+
+u32 test_vao;
+u32 test_index_count;
+u32 test_type;
+u32 test_material;
+
+Material* materials;
+
+void resize_callback(GLFWwindow *window, i32 width, i32 height) 
+{
+}
+
+void mouse_callback(GLFWwindow* window, double pos_x, double pos_y) 
+{
+}
+
+// u32 load_texture(const char* file)
+// {
+//     u32 texture;
+//     glGenTextures(1, &texture);
+//
+//     glBindTexture(GL_TEXTURE_2D, texture);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//
+//     i32 width, height, nr_channels;
+//     u8 *data = stbi_load(file, &width, &height, &nr_channels, 0);
+//     if (data) {
+//         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+//         glGenerateMipmap(GL_TEXTURE_2D);
+//
+//         stbi_image_free(data);
+//     } else {
+//         printf("Failed to load texture: %s\n", file);
+//     }
+//
+//     return texture;
+// }
+
+void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
+{
+    printf("Loading node\n");
+    fastgltf::Node* node = asset->nodes.data() + node_index;
+
+    if (node->meshIndex.has_value()) {
+        u32 mesh_index = node->meshIndex.value();
+        fastgltf::Mesh* mesh = asset->meshes.data() + mesh_index;
+
+        for (u32 i = 0; i < mesh->primitives.size(); ++i) {
+            fastgltf::Primitive* prim = mesh->primitives.data() + i;
+
+            // TODO: Fix this
+            Object object;
+            object.render.mesh = 0;
+            object.render.material = 0;
+            object.transform.pos = glm::vec3(0.0f, 0.0f, 0.0f);
+            object.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
+            object.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+
+            push_object(scene, object);
+        }
+
+    }
+
+    for (u32 i = 0; i < node->children.size(); ++i) {
+        load_node(scene, asset, node->children[i]);
+    }
+}
+
+void load_scene(Scene* scene, const String* file)
+{
+    std::filesystem::path path = file->ptr;
+
+    fastgltf::Parser parser;
+    fastgltf::GltfDataBuffer data;
+    data.loadFromFile(path);
+
+    fastgltf::Expected<fastgltf::Asset> result = parser.loadGLTF(&data, 
+                                                    path.parent_path(), 
+                                                    fastgltf::Options::LoadExternalBuffers);
+    auto error = result.error();
+    if (error !=  fastgltf::Error::None) {
+        printf("Failed to load %s\n", file->ptr);
+        exit(1);
+    }
+
+    fastgltf::Asset* asset = &result.get();
+    if (asset->scenes.size() == 0) {
+        printf("No scenes to load\n");
+        return;
+    }
+
+    Arena arena;
+    init_arena(&arena, &pool);
+
+    u32 scene_to_load = asset->defaultScene.has_value()? asset->defaultScene.value() : 0;
+    fastgltf::Scene* scn = asset->scenes.data() + scene_to_load;
+    printf("Loading Scene: %u\n", scene_to_load);
+
+    // images
+    u32 image_count = asset->images.size();
+    for (u32 i = 0; i < image_count; ++i) {
+        fastgltf::Image* image = asset->images.data() + i;
+
+        fastgltf::sources::URI* ptr = std::get_if<fastgltf::sources::URI>(&image->data);
+        if (!ptr) {
+            printf("Image uses not implemented data source\n");
+        }
+        printf("Need to load image: %s\n", ptr->uri.uri.c_str());
+    }
+
+    // load materials
+    u32 material_count = asset->materials.size();
+    materials = (Material*) push_size(&asset_arena, sizeof(Material) * material_count);
+    for (u32 i = 0; i < material_count; ++i) {
+        fastgltf::Material* material = asset->materials.data() + i;
+        materials[i].color = glm::vec4(material->pbrData.baseColorFactor[0],
+                                       material->pbrData.baseColorFactor[1],
+                                       material->pbrData.baseColorFactor[2],
+                                       material->pbrData.baseColorFactor[3]);
+    }
+
+    // retrieve buffer pointer
+    u32 buffer_count = asset->buffers.size();
+    u8** buffer_ptr = (u8**) push_size(&arena, sizeof(u8*) * buffer_count);
+    for (u32 i = 0; i < buffer_count; ++i) {
+        fastgltf::Buffer* buffer = asset->buffers.data() + i;
+
+        fastgltf::sources::Vector* ptr = std::get_if<fastgltf::sources::Vector>(&buffer->data);
+        if (ptr) {
+            buffer_ptr[i] = ptr->bytes.data();
+            continue;
+        }
+        
+        printf("Buffer uses not implemented data source\n");
+        exit(1);
+    }
+
+    // load gpu buffers
+    u32 buffer_view_count = asset->bufferViews.size();
+    u32* gpu_buffers = (u32*) push_size(&arena, sizeof(u32) * buffer_view_count);
+    glGenBuffers(buffer_view_count, gpu_buffers);
+    for (u32 i = 0; i < buffer_view_count; ++i) {
+        fastgltf::BufferView* view = asset->bufferViews.data() + i;
+        if (!view->target.has_value()) {
+            continue;
+        }
+        u32 target = (u32) view->target.value();
+
+        glBindBuffer(target, gpu_buffers[i]);
+        glBufferData(target, view->byteLength, 
+                     buffer_ptr[view->bufferIndex] + view->byteOffset, 
+                     GL_STATIC_DRAW);
+    }
+
+    for (u32 i = 0; i < asset->meshes.size(); ++i) {
+        fastgltf::Mesh* mesh = asset->meshes.data() + i;
+        for (u32 j = 0; j < mesh->primitives.size(); ++j) {
+            fastgltf::Primitive* prim = mesh->primitives.data() + j;
+
+            u32 attrib_count = prim->attributes.size();
+
+            if (!prim->indicesAccessor.has_value()) {
+                continue;
+            }
+            u32 index_acc_id = prim->indicesAccessor.value();
+
+            u32 vao;
+            glGenVertexArrays(1, &vao);
+            glBindVertexArray(vao);
+
+            fastgltf::Accessor* index_accessor = asset->accessors.data() + index_acc_id;
+            if (!index_accessor->bufferViewIndex.has_value()) {
+                continue;
+            }
+            u32 index_view_index = index_accessor->bufferViewIndex.value();
+            fastgltf::BufferView* index_view =  asset->bufferViews.data() + index_view_index;
+
+            if (!index_view->target.has_value()) {
+                continue;
+            }
+            
+            test_type = (u32) fastgltf::getGLComponentType(index_accessor->componentType);
+            test_index_count = index_accessor->count;
+            glBindBuffer((u32) index_view->target.value(), gpu_buffers[index_view_index]);
+
+            for (u32 k = 0; k < attrib_count; ++k) {
+                u32 accessor_index = prim->attributes[k].second;
+                fastgltf::Accessor* accessor = asset->accessors.data() + accessor_index;
+
+                u32 byte_offset = accessor->byteOffset;
+                u8 num_components = getNumComponents(accessor->type);
+
+                if (!accessor->bufferViewIndex.has_value()) {
+                    continue;
+                }
+                u32 buffer_view_index = accessor->bufferViewIndex.value();
+                fastgltf::BufferView* buffer_view = asset->bufferViews.data() + buffer_view_index;
+
+                if (!buffer_view->target.has_value()) {
+                    continue;
+                }
+                u32 stride = 0;
+                std::optional byte_stride_opt = buffer_view->byteStride;
+                if (byte_stride_opt.has_value()) {
+                    stride = buffer_view->byteStride.value();
+                }
+
+                glBindBuffer((GLenum) buffer_view->target.value(), gpu_buffers[buffer_view_index]);
+                glEnableVertexAttribArray(k);
+                glVertexAttribPointer(k, num_components, 
+                                      GL_FLOAT, 
+                                      GL_FALSE, 
+                                      stride,
+                                      (void*) accessor->byteOffset);
+            }
+            u32 material = prim->materialIndex.has_value()? prim->materialIndex.value() : 0;
+            test_material = material;
+
+            test_vao = vao;
+        }
+
+    }
+
+    for (u32 i = 0; i < scn->nodeIndices.size(); ++i) {
+        u32 node_index = scn->nodeIndices[i];
+        load_node(scene, asset, node_index);
+    }
+
+    dispose(&arena);
+}
+
+void init_window() 
+{
+    glfwInit();
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwSwapInterval(1);
+
+    window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
+    glfwSetFramebufferSizeCallback(window, resize_callback);
+
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwMakeContextCurrent(window);
+}
+
+i32 main(i32 argc, char** argv) 
+{
+    init_window();
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        printf("failed to load required extensions\n");
+        return 1;
+    }
+
+    init_pool(&pool);
+    init_arena(&asset_arena, &pool);
+
+    Scene scene;
+    init_scene(&scene);
+
+    MaterialShader shader = load_shader("shader/shader.vert", "shader/shader.frag");
+
+    const char* scene_file;
+    if (argc > 1) {
+        scene_file = argv[1];
+    } else {
+        scene_file = "../assets/2.0/Box/glTF/Box.gltf";
+    }
+    printf("Loading scene: %s\n", scene_file);
+    load_scene(&scene, scene_file);
+
+
+    glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
+                                            (float) width / (float) height, 
+                                            1.0f, 1000.0f);
+    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), 
+                                 glm::vec3(0.0f, 0.0f, 0.0f),
+                                 glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 proj_view = projection * view;
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glClearColor(0, 0, 0, 1);
+
+    glUseProgram(shader.id);
+    set_mat4(shader.u_proj_view, &proj_view);
+    set_vec4(shader.u_mat_color, &materials[0].color);
+
+    while (!glfwWindowShouldClose(window)) {
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, true);
+        }
+
+        scene_update(&scene);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glBindVertexArray(test_vao);
+        glDrawElements(GL_TRIANGLES, 36, test_type, 0);
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}

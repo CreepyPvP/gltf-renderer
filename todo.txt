@@ -1,0 +1,25 @@
+Fix type                                    (done)
+Fix target (GL_ELEMENT_ARRAY_BUFFER)        (done)
+Basic material
+Multiple nodes
+Multiple primitives
+Transform
+Push to github
+
+Basic pbr rendering (metallic, roughness, etc ...)
+
+Diffuse textures
+
+(probably need shader generator here??)
+
+Normal textures
+Specular textures
+Occulsion textures
+
+Better resource managment here (also store names somewhere)
+
+## Other hardcoded values: (maybe fix?)
+
+Attrib layout in shader
+GL_TRIANGLES hardcoded
+
