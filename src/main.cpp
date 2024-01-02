@@ -27,9 +27,11 @@
 struct Material
 {
     glm::vec4 color;
-    u32 flags;
+    u16 flags;
 
     u32 diffuse_texture;
+    u32 normal_texture;
+    u32 roughness_texture;
 };
 
 struct Primitive 
@@ -38,6 +40,8 @@ struct Primitive
     u32 index_count;
     u32 index_type;
     u32 material;
+
+    u16 attrib_flags;
 };
 
 struct Mesh
@@ -123,7 +127,7 @@ void load_scene(Scene* scene, const char* file)
 
     u32 scene_to_load = asset->defaultScene.has_value()? asset->defaultScene.value() : 0;
     fastgltf::Scene* scn = asset->scenes.data() + scene_to_load;
-    printf("Loading Scene: %u\n", scene_to_load);
+    printf("Loading scene: %u\n", scene_to_load);
 
     // load materials
     u32 material_count = asset->materials.size();
@@ -138,6 +142,15 @@ void load_scene(Scene* scene, const char* file)
         if (material->pbrData.baseColorTexture.has_value()) {
             materials[i].diffuse_texture = material->pbrData.baseColorTexture.value().textureIndex;
             materials[i].flags |= MATERIAL_DIFFUSE_TEXTURE;
+        }
+        if (material->pbrData.metallicRoughnessTexture.has_value()) {
+            materials[i].roughness_texture = 
+                material->pbrData.metallicRoughnessTexture.value().textureIndex;
+            materials[i].flags |= MATERIAL_ROUGHNESS_TEXTURE;
+        }
+        if (material->normalTexture.has_value()) {
+            materials[i].normal_texture = material->normalTexture.value().textureIndex;
+            materials[i].flags |= MATERIAL_NORMAL_TEXTURE;
         }
     }
 
@@ -266,15 +279,29 @@ void load_scene(Scene* scene, const char* file)
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpu_buffers[index_view_index]);
             
-            meshes[i].primitives[j].index_type = 
-                (u32) fastgltf::getGLComponentType(index_accessor->componentType);
-            meshes[i].primitives[j].index_count = index_accessor->count;
-            meshes[i].primitives[j].vao = vao;
-
-            meshes[i].primitives[j].material = prim->materialIndex.has_value()? 
-                prim->materialIndex.value() : 0;
+            Primitive* prim_ptr = meshes[i].primitives + j;
+            prim_ptr->index_type = (u32) fastgltf::getGLComponentType(index_accessor->componentType);
+            prim_ptr->material = prim->materialIndex.has_value()? prim->materialIndex.value() : 0;
+            prim_ptr->index_count = index_accessor->count;
+            prim_ptr->vao = vao;
+            prim_ptr->attrib_flags = 0;
 
             for (u32 k = 0; k < attrib_count; ++k) {
+                const char* attr_type = prim->attributes[k].first.c_str();
+
+                u32 attr_id;
+                if (strcmp(attr_type, "POSITION") == 0) {
+                    attr_id = 0;
+                } else if (strcmp(attr_type, "NORMAL") == 0) {
+                    attr_id = 1;
+                } else if (strcmp(attr_type, "TEXCOORD_0") == 0) {
+                    attr_id = 2;
+                } else {
+                    printf("Unknown attr type: %s. Skipping\n", attr_type);
+                    continue;
+                }
+                prim_ptr->attrib_flags |= (1 << attr_id);
+
                 u32 accessor_index = prim->attributes[k].second;
                 fastgltf::Accessor* accessor = asset->accessors.data() + accessor_index;
 
@@ -282,6 +309,7 @@ void load_scene(Scene* scene, const char* file)
                 u8 num_components = getNumComponents(accessor->type);
 
                 if (!accessor->bufferViewIndex.has_value()) {
+                    printf("No buffer view specified for vertex attr\n");
                     continue;
                 }
                 u32 buffer_view_index = accessor->bufferViewIndex.value();
@@ -293,12 +321,12 @@ void load_scene(Scene* scene, const char* file)
                 }
 
                 glBindBuffer(GL_ARRAY_BUFFER, gpu_buffers[buffer_view_index]);
-                glEnableVertexAttribArray(k);
-                glVertexAttribPointer(k, num_components, 
+                glEnableVertexAttribArray(attr_id);
+                glVertexAttribPointer(attr_id, num_components, 
                                       GL_FLOAT, 
                                       GL_FALSE, 
                                       stride,
-                                      0);
+                                      (void*) byte_offset);
             }
         }
 
@@ -348,9 +376,9 @@ i32 main(i32 argc, char** argv)
     if (argc > 1) {
         scene_file = argv[1];
     } else {
-        scene_file = "../assets/2.0/MetalBox/glTF/MetalBox.gltf";
+        scene_file = "../assets/2.0/BoxInterleaved/glTF/BoxInterleaved.gltf";
     }
-    printf("Loading scene: %s\n", scene_file);
+    printf("Loading file: %s\n", scene_file);
     load_scene(&scene, scene_file);
 
     Material material = materials[0];
@@ -379,6 +407,12 @@ i32 main(i32 argc, char** argv)
     if (material.flags & MATERIAL_DIFFUSE_TEXTURE) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textures[material.diffuse_texture]);
+        set_texture(shader.u_mat_diffuse, 0);
+    }
+    if (material.flags & MATERIAL_NORMAL_TEXTURE) {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textures[material.normal_texture]);
+        set_texture(shader.u_mat_normal, 1);
     }
 
     while (!glfwWindowShouldClose(window)) {

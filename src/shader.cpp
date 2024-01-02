@@ -27,10 +27,15 @@ u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
     Arena arena;
     init_arena(&arena, &pool);
 
-    char shader_header[512] = {};
+    char shader_header[1024] = {};
     append_str(shader_header, "#version 440\n");
+    append_str(shader_header, "#define ATTRIB_UV\n");
+
     if (flags & MATERIAL_DIFFUSE_TEXTURE) {
         append_str(shader_header, "#define USE_DIFFUSE_TEXTURE\n");
+    }
+    if (flags & MATERIAL_NORMAL_TEXTURE) {
+        append_str(shader_header, "#define USE_NORMAL_TEXTURE\n");
     }
 
     char* sources[2] = {shader_header};
@@ -93,6 +98,7 @@ MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
     shader.u_model = glGetUniformLocation(shader.id, "model");
     shader.u_mat_color = glGetUniformLocation(shader.id, "mat_color");
     shader.u_mat_diffuse = glGetUniformLocation(shader.id, "mat_diffuse");
+    shader.u_mat_normal = glGetUniformLocation(shader.id, "mat_normal");
     return shader;
 }
 
@@ -109,4 +115,9 @@ void set_vec2(u32 uniform, glm::vec2* vec)
 void set_vec4(u32 uniform, glm::vec4* vec)
 {
     glUniform4fv(uniform, 1, &(*vec)[0]);
+}
+
+void set_texture(u32 uniform, i32 slot)
+{
+    glUniform1i(uniform, slot);
 }

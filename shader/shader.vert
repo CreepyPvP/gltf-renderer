@@ -3,7 +3,7 @@ layout(location = 1) in vec3 aNorm;
 
 out vec3 out_norm;
 
-#ifdef USE_DIFFUSE_TEXTURE
+#ifdef ATTRIB_UV
 layout(location = 2) in vec2 aUv;
 out vec2 out_uv;
 #endif
