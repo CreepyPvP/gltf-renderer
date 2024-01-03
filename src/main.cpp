@@ -397,10 +397,10 @@ i32 main(i32 argc, char** argv)
     printf("Loading file: %s\n", scene_file);
     load_scene(&scene, scene_file);
 
-    Material material = materials[0];
-    Primitive prim = meshes[0].primitives[0];
+    u16 attrib_flags = ATTRIB_UV | ATTRIB_NORMAL | ATTRIB_TANGENT;
+    u16 mat_flags = MATERIAL_DIFFUSE_TEXTURE;
 
-    u32 shader_features = (u32) material.flags | (u32) prim.attrib_flags << 16;
+    u32 shader_features = (u32) mat_flags | (u32) attrib_flags << 16;
     MaterialShader shader = load_shader("shader/shader.vert", 
                                         "shader/shader.frag", 
                                         shader_features);
@@ -420,18 +420,6 @@ i32 main(i32 argc, char** argv)
 
     glUseProgram(shader.id);
     set_mat4(shader.u_proj_view, &proj_view);
-
-    set_vec4(shader.u_mat_color, &material.color);
-    if (material.flags & MATERIAL_DIFFUSE_TEXTURE) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textures[material.diffuse_texture]);
-        set_texture(shader.u_mat_diffuse, 0);
-    }
-    if (material.flags & MATERIAL_NORMAL_TEXTURE) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textures[material.normal_texture]);
-        set_texture(shader.u_mat_normal, 1);
-    }
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -455,11 +443,23 @@ i32 main(i32 argc, char** argv)
             res = glm::rotate(res, glm::radians(obj->transform.rot.y), glm::vec3(0.0f, 1.0f, 0.0f));
             res = glm::rotate(res, glm::radians(obj->transform.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
             res = glm::scale(res, obj->transform.scale);
-
             set_mat4(shader.u_model, &res);
 
             for (u32 j = 0; j < meshes[mesh_id].primitive_count; ++j) {
                 Primitive* prim = meshes[mesh_id].primitives + j;
+                Material* mat = materials + prim->material;
+
+                set_vec4(shader.u_mat_color, &mat->color);
+                if (mat->flags & MATERIAL_DIFFUSE_TEXTURE) {
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, textures[mat->diffuse_texture]);
+                    set_texture(shader.u_mat_diffuse, 0);
+                }
+                if (mat->flags & MATERIAL_NORMAL_TEXTURE) {
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, textures[mat->normal_texture]);
+                    set_texture(shader.u_mat_normal, 1);
+                }
 
                 glBindVertexArray(prim->vao);
                 glDrawElements(GL_TRIANGLES, 
