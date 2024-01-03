@@ -34,5 +34,9 @@ void main() {
     vec4 diffuse_color = vec4(1, 1, 1, 1);
 #endif
 
-    out_Color = diffuse_color * mat_color * dot(l, n);
+    vec3 overall = diffuse_color.xyz * mat_color.xyz;
+    vec3 cold = vec3(0.0, 0.0, 0.04) + 0.6 * overall;
+    vec3 warm = vec3(0.1, 0.05, 0) + overall;
+    float light = dot(l, n);
+    out_Color = vec4(mix(cold, warm, light), 1);
 }

@@ -23,6 +23,7 @@
 #include "include/shader.h"
 #include "include/arena.h"
 #include "include/scene.h"
+#include "include/camera.h"
 
 struct Material
 {
@@ -55,6 +56,8 @@ const u32 width = 1280;
 const u32 height = 720;
 
 GLFWwindow *window;
+float last_mouse_pos_x;
+float last_mouse_pos_y;
 
 Arena asset_arena;
 
@@ -68,6 +71,14 @@ void resize_callback(GLFWwindow *window, i32 width, i32 height)
 
 void mouse_callback(GLFWwindow* window, double pos_x, double pos_y) 
 {
+    float x_offset = pos_x - last_mouse_pos_x;
+    float y_offset = pos_y - last_mouse_pos_y;
+    last_mouse_pos_x = pos_x;
+    last_mouse_pos_y = pos_y;
+    const float sensitivity = 0.1f;
+    x_offset *= sensitivity;
+    y_offset *= sensitivity;
+    camera.process_mouse_input(x_offset, y_offset);
 }
 
 void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
@@ -371,7 +382,7 @@ void init_window()
     window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
     glfwSetFramebufferSizeCallback(window, resize_callback);
 
-    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwMakeContextCurrent(window);
 }
@@ -387,6 +398,7 @@ i32 main(i32 argc, char** argv)
     init_pool(&pool);
     init_arena(&asset_arena, &pool);
 
+    camera.init();
     Scene scene;
     init_scene(&scene);
 
@@ -411,26 +423,33 @@ i32 main(i32 argc, char** argv)
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
                                             (float) width / (float) height, 
                                             1.0f, 1000.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(20.0f, 20.0f, 20.0f), 
-                                 glm::vec3(0.0f, 0.0f, 0.0f),
-                                 glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 proj_view = projection * view;
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glClearColor(0, 0, 0, 1);
 
     glUseProgram(shader.id);
-    set_mat4(shader.u_proj_view, &proj_view);
+
+    float time_last_frame = glfwGetTime();
+    float delta = 0;
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, true);
         }
 
-        float time = glfwGetTime();
+        float current_time = glfwGetTime();
+        delta = current_time - time_last_frame;
+        time_last_frame = current_time;
 
         scene_update(&scene);
+
+        camera.process_key_input(window, delta);
+        glm::mat4 view = glm::lookAt(camera.pos,
+                                     camera.pos + camera.front,
+                                     glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 proj_view = projection * view;
+        set_mat4(shader.u_proj_view, &proj_view);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
