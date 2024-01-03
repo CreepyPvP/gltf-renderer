@@ -197,8 +197,8 @@ void load_scene(Scene* scene, const char* file)
         // TODO: read sampler info here
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         i32 format;
         if (nu_channels == 4) {
@@ -412,7 +412,7 @@ i32 main(i32 argc, char** argv)
     load_scene(&scene, scene_file);
 
     u16 attrib_flags = ATTRIB_UV | ATTRIB_NORMAL | ATTRIB_TANGENT;
-    u16 mat_flags = MATERIAL_DIFFUSE_TEXTURE;
+    u16 mat_flags = MATERIAL_DIFFUSE_TEXTURE | MATERIAL_NORMAL_TEXTURE;
 
     u32 shader_features = (u32) mat_flags | (u32) attrib_flags << 16;
     MaterialShader shader = load_shader("shader/shader.vert", 
@@ -422,7 +422,7 @@ i32 main(i32 argc, char** argv)
 
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
                                             (float) width / (float) height, 
-                                            1.0f, 1000.0f);
+                                            0.01f, 1000.0f);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);

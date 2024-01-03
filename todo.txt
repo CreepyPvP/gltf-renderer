@@ -1,20 +1,16 @@
 Normal textures
-Roughness textures
-
-Enable / disable uvs dyanmically
-
-Multiple nodes
-Read correct transform for node
 
 Basic pbr rendering (metallic, roughness, etc ...)
+Antialiasing
+
+Specular textures
+Roughness textures
+Occulsion textures
 
 Shader managment
 
-Specular textures
-Occulsion textures
-
 Better resource managment here (also store names somewhere)
 
-## Other hardcoded values: (maybe fix?)
 GL_TRIANGLES hardcoded
 
+Profiling

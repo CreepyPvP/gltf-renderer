@@ -8,6 +8,11 @@ layout(location = 2) in vec2 aUv;
 out vec2 out_uv;
 #endif
 
+#ifdef ATTRIB_TANGENT
+layout(location = 3) in vec3 aTangent;
+out vec3 out_tangent;
+#endif
+
 uniform mat4 proj_view;
 uniform mat4 model;
 
@@ -16,7 +21,11 @@ void main() {
     out_norm = normalize((model * vec4(aNorm, 1)).xyz);
     gl_Position = proj_view * model * vec4(aPos, 1);
 
-#ifdef USE_DIFFUSE_TEXTURE
+#ifdef ATTRIB_UV
     out_uv = aUv;
+#endif
+
+#ifdef ATTRIB_TANGENT
+    out_tangent = normalize((model * vec4(aTangent, 1)).xyz);
 #endif
 }
