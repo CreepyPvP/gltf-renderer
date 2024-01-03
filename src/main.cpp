@@ -39,6 +39,7 @@ struct Primitive
     u32 vao;
     u32 index_count;
     u32 index_type;
+    u32 index_offset;
     u32 material;
 
     u16 attrib_flags;
@@ -285,6 +286,7 @@ void load_scene(Scene* scene, const char* file)
             prim_ptr->index_type = (u32) fastgltf::getGLComponentType(index_accessor->componentType);
             prim_ptr->material = prim->materialIndex.has_value()? prim->materialIndex.value() : 0;
             prim_ptr->index_count = index_accessor->count;
+            prim_ptr->index_offset = index_accessor->byteOffset;
             prim_ptr->vao = vao;
             prim_ptr->attrib_flags = 0;
 
@@ -465,7 +467,7 @@ i32 main(i32 argc, char** argv)
                 glDrawElements(GL_TRIANGLES, 
                                prim->index_count, 
                                prim->index_type, 
-                               0);
+                               (void*) prim->index_offset);
             }
 
         }
