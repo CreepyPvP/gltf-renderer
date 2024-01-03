@@ -14,7 +14,6 @@ uniform sampler2D mat_diffuse;
 
 #ifdef USE_NORMAL_TEXTURE
 uniform sampler2D mat_normal;
-uniform mat4 model;
 #endif
 
 vec3 light_dir = vec3(1, 2, 3);
@@ -24,7 +23,7 @@ void main() {
     vec3 l = normalize(light_dir);
 
 #ifdef USE_NORMAL_TEXTURE
-    vec3 n = normalize((model * texture(mat_normal, out_uv)).xyz);
+    vec3 n = normalize(out_norm);
 #else
     vec3 n = normalize(out_norm);
 #endif

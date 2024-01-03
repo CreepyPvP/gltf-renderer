@@ -7,6 +7,11 @@
 #define MATERIAL_NORMAL_TEXTURE 1 << 1
 #define MATERIAL_ROUGHNESS_TEXTURE 1 << 2
 
+#define ATTRIB_POSITION 1 << 0
+#define ATTRIB_NORMAL 1 << 1
+#define ATTRIB_UV 1 << 2
+#define ATTRIB_TANGENT 1 << 3
+
 struct MaterialShader
 {
     u32 id;

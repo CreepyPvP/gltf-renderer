@@ -37,6 +37,15 @@ u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
     if (flags & MATERIAL_NORMAL_TEXTURE) {
         append_str(shader_header, "#define USE_NORMAL_TEXTURE\n");
     }
+    if (flags >> 16 & ATTRIB_NORMAL) {
+        append_str(shader_header, "#define ATTRIB_NORMAL\n");
+    }
+    if (flags >> 16 & ATTRIB_UV) {
+        append_str(shader_header, "#define ATTRIB_UV\n");
+    }
+    if (flags >> 16 & ATTRIB_TANGENT) {
+        append_str(shader_header, "#define ATTRIB_TANGENT\n");
+    }
 
     char* sources[2] = {shader_header};
 

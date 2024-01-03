@@ -71,26 +71,27 @@ void mouse_callback(GLFWwindow* window, double pos_x, double pos_y)
 
 void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
 {
-    printf("Loading node\n");
     fastgltf::Node* node = asset->nodes.data() + node_index;
 
     if (node->meshIndex.has_value()) {
         u32 mesh_index = node->meshIndex.value();
-        fastgltf::Mesh* mesh = asset->meshes.data() + mesh_index;
 
-        for (u32 i = 0; i < mesh->primitives.size(); ++i) {
-            fastgltf::Primitive* prim = mesh->primitives.data() + i;
+        fastgltf::Node::TRS* transform = std::get_if<fastgltf::Node::TRS>(&node->transform);
 
-            // TODO: Fix this
-            Object object;
-            object.render.mesh = 0;
-            object.transform.pos = glm::vec3(0.0f, 0.0f, 0.0f);
-            object.transform.rot = glm::vec3(0.0f, 0.0f, 0.0f);
-            object.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+        // TODO: Fix this
+        Object object;
+        object.render.mesh = mesh_index;
+        object.transform.pos = glm::vec3(transform->translation[0], 
+                                         transform->translation[1], 
+                                         transform->translation[2]);
+        object.transform.rot = glm::vec3(transform->rotation[0],
+                                         transform->rotation[1],
+                                         transform->rotation[2]);
+        object.transform.scale = glm::vec3(transform->scale[0],
+                                           transform->scale[1],
+                                           transform->scale[2]);
 
-            push_object(scene, object);
-        }
-
+        push_object(scene, object);
     }
 
     for (u32 i = 0; i < node->children.size(); ++i) {
@@ -109,7 +110,8 @@ void load_scene(Scene* scene, const char* file)
     fastgltf::Expected<fastgltf::Asset> result = parser.loadGLTF(&data, 
                                                     path.parent_path(), 
                                                     fastgltf::Options::LoadExternalBuffers |
-                                                    fastgltf::Options::LoadExternalImages);
+                                                    fastgltf::Options::LoadExternalImages |
+                                                    fastgltf::Options::DecomposeNodeMatrices);
     auto error = result.error();
     if (error !=  fastgltf::Error::None) {
         printf("Failed to load %s\n", file);
@@ -296,6 +298,8 @@ void load_scene(Scene* scene, const char* file)
                     attr_id = 1;
                 } else if (strcmp(attr_type, "TEXCOORD_0") == 0) {
                     attr_id = 2;
+                } else if (strcmp(attr_type, "TANGENT") == 0) {
+                    attr_id = 3;
                 } else {
                     printf("Unknown attr type: %s. Skipping\n", attr_type);
                     continue;
@@ -327,6 +331,18 @@ void load_scene(Scene* scene, const char* file)
                                       GL_FALSE, 
                                       stride,
                                       (void*) byte_offset);
+            }
+
+            if (materials[prim_ptr->material].flags & MATERIAL_NORMAL_TEXTURE) {
+                u32 normal_uv_mask = ATTRIB_NORMAL | ATTRIB_UV;
+                if (prim_ptr->attrib_flags & normal_uv_mask != normal_uv_mask) {
+                    printf("Normal and UVs required for normal mapping\n");
+                }
+            
+                if (!(prim_ptr->attrib_flags & ATTRIB_TANGENT)) {
+                    // TODO: calculate tangents here
+                    printf("No tangents provided for normal mapping\n");
+                }
             }
         }
 
@@ -376,22 +392,24 @@ i32 main(i32 argc, char** argv)
     if (argc > 1) {
         scene_file = argv[1];
     } else {
-        scene_file = "../assets/2.0/BoxInterleaved/glTF/BoxInterleaved.gltf";
+        scene_file = "../assets/2.0/Sponza/glTF/Sponza.gltf";
     }
     printf("Loading file: %s\n", scene_file);
     load_scene(&scene, scene_file);
 
     Material material = materials[0];
+    Primitive prim = meshes[0].primitives[0];
 
+    u32 shader_features = (u32) material.flags | (u32) prim.attrib_flags << 16;
     MaterialShader shader = load_shader("shader/shader.vert", 
                                         "shader/shader.frag", 
-                                        material.flags);
+                                        shader_features);
 
 
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
                                             (float) width / (float) height, 
                                             1.0f, 1000.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), 
+    glm::mat4 view = glm::lookAt(glm::vec3(20.0f, 20.0f, 20.0f), 
                                  glm::vec3(0.0f, 0.0f, 0.0f),
                                  glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 proj_view = projection * view;
@@ -424,21 +442,32 @@ i32 main(i32 argc, char** argv)
 
         scene_update(&scene);
 
-        glm::mat4 model = glm::rotate(glm::mat4(1.0f), 
-                                      glm::radians(90.0f * time), 
-                                      glm::vec3(0.0f, 1.0f, 0.0f));
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        set_mat4(shader.u_model, &model);
 
-        for (u32 i = 0; i < meshes[0].primitive_count; ++i) {
-            Primitive* prim = meshes[0].primitives + i;
+        for (u32 i = 0; i < scene.object_count; ++i) {
+            Object* obj = scene.objects + i;
+            u32 mesh_id = obj->render.mesh;
 
-            glBindVertexArray(prim->vao);
-            glDrawElements(GL_TRIANGLES, 
-                           prim->index_count, 
-                           prim->index_type, 
-                           0);
+            glm::mat4 res;
+            res = glm::mat4(1.0);
+            res = glm::translate(res, obj->transform.pos);
+            res = glm::rotate(res, glm::radians(obj->transform.rot.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            res = glm::rotate(res, glm::radians(obj->transform.rot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            res = glm::rotate(res, glm::radians(obj->transform.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+            res = glm::scale(res, obj->transform.scale);
+
+            set_mat4(shader.u_model, &res);
+
+            for (u32 j = 0; j < meshes[mesh_id].primitive_count; ++j) {
+                Primitive* prim = meshes[mesh_id].primitives + j;
+
+                glBindVertexArray(prim->vao);
+                glDrawElements(GL_TRIANGLES, 
+                               prim->index_count, 
+                               prim->index_type, 
+                               0);
+            }
+
         }
 
         glfwSwapBuffers(window);
