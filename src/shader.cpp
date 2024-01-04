@@ -108,6 +108,7 @@ MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
     shader.u_mat_color = glGetUniformLocation(shader.id, "mat_color");
     shader.u_mat_diffuse = glGetUniformLocation(shader.id, "mat_diffuse");
     shader.u_mat_normal = glGetUniformLocation(shader.id, "mat_normal");
+    shader.u_camera_pos = glGetUniformLocation(shader.id, "camera_pos");
     return shader;
 }
 
@@ -124,6 +125,11 @@ void set_vec2(u32 uniform, glm::vec2* vec)
 void set_vec4(u32 uniform, glm::vec4* vec)
 {
     glUniform4fv(uniform, 1, &(*vec)[0]);
+}
+
+void set_vec3(u32 uniform, glm::vec3* vec)
+{
+    glUniform3fv(uniform, 1, &(*vec)[0]);
 }
 
 void set_texture(u32 uniform, i32 slot)

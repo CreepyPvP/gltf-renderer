@@ -1,5 +1,3 @@
-Normal textures
-
 Basic pbr rendering (metallic, roughness, etc ...)
 Antialiasing
 
@@ -9,8 +7,13 @@ Occulsion textures
 
 Shader managment
 
+Animations
+Skinning
+
 Better resource managment here (also store names somewhere)
 
 GL_TRIANGLES hardcoded
 
 Profiling
+
+Screenspace reflections

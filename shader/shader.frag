@@ -1,6 +1,9 @@
+#define PI 3.14
+
 uniform vec4 mat_color;
 
 in vec3 out_norm;
+in vec3 out_pos;
 
 out vec4 out_Color;
 
@@ -20,13 +23,56 @@ uniform sampler2D mat_diffuse;
 uniform sampler2D mat_normal;
 #endif
 
+uniform vec3 camera_pos;
+
 vec3 light_dir = vec3(1, 2, 3);
 
 
+vec3 fresnel(float u, vec3 f0) {
+    return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0);
+}
+
+// Use fast approximation?
+float shadowing(float nov, float nol, float roughness) {
+    float a2 = roughness * roughness;
+    float ggxl = nov * sqrt((-nol * a2 + nol) * nol + a2);
+    float ggxv = nol * sqrt((-nov * a2 + nov) * nov + a2);
+    return 0.5 / (ggxv + ggxl);
+}
+
+float ndf(float noh, float roughness)
+{
+    float a2 = roughness * roughness;
+    float f = (noh * a2 - noh) * noh + 1.0;
+    return a2 / (PI * f * f);
+}
+
+vec3 brdf(vec3 v, vec3 l, vec3 n, vec3 diffuse_color)
+{
+    vec3 h = normalize(v + l);
+
+    float nov = abs(dot(n, v)) + 1e-5;
+    float nol = clamp(dot(n, l), 0, 1);
+    float noh = clamp(dot(n, h), 0, 1);
+    float loh = clamp(dot(l, h), 0, 1);
+
+    float roughness = 0.4;
+    roughness = roughness * roughness;
+    vec3 f0 = vec3(0.01);
+
+    float D = ndf(noh, roughness);
+    vec3 F = fresnel(loh, f0);
+    float V = shadowing(nov, nol, roughness);
+
+    vec3 fr = (D * V) * F;
+    return fr + diffuse_color / PI;
+}
+
 void main() {
     vec3 l = normalize(light_dir);
-
+    vec3 v = normalize(camera_pos - out_pos);
     vec3 n = normalize(out_norm);
+
 #ifdef USE_NORMAL_TEXTURE
     vec3 tan = normalize(out_tangent);
     vec3 btan = cross(n, tan);
@@ -41,10 +87,12 @@ void main() {
     vec4 diffuse_color = vec4(1, 1, 1, 1);
 #endif
 
-    vec3 overall = diffuse_color.xyz * mat_color.xyz;
-    vec3 cold = vec3(0.02, 0.02, 0.025) + 0.55 * overall;
-    vec3 warm = vec3(0.1, 0.05, 0) + overall;
-    float light = dot(l, n);
-    out_Color = vec4(mix(cold, warm, light), 1);
-    // out_Color = vec4(light, 0, 0, 1);
+    // vec3 overall = diffuse_color.xyz * mat_color.xyz;
+
+    vec3 color = brdf(v, l, n, diffuse_color.rgb);
+    out_Color = vec4(color, diffuse_color.a);
+    // vec3 cold = vec3(0.02, 0.02, 0.025) + 0.55 * color;
+    // vec3 warm = vec3(0.1, 0.05, 0) + color;
+    // float light = dot(l, n);
+    // out_Color = vec4(mix(cold, warm, light), 1);
 }

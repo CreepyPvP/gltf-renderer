@@ -453,6 +453,8 @@ i32 main(i32 argc, char** argv)
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        set_vec3(shader.u_camera_pos, &camera.pos);
+
         for (u32 i = 0; i < scene.object_count; ++i) {
             Object* obj = scene.objects + i;
             u32 mesh_id = obj->render.mesh;
@@ -465,6 +467,7 @@ i32 main(i32 argc, char** argv)
             res = glm::rotate(res, glm::radians(obj->transform.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
             res = glm::scale(res, obj->transform.scale);
             set_mat4(shader.u_model, &res);
+
 
             for (u32 j = 0; j < meshes[mesh_id].primitive_count; ++j) {
                 Primitive* prim = meshes[mesh_id].primitives + j;
