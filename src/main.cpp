@@ -65,6 +65,9 @@ Mesh* meshes;
 Material* materials;
 u32* textures;
 
+u32 square_vao;
+
+
 void resize_callback(GLFWwindow *window, i32 width, i32 height) 
 {
 }
@@ -79,6 +82,28 @@ void mouse_callback(GLFWwindow* window, double pos_x, double pos_y)
     x_offset *= sensitivity;
     y_offset *= sensitivity;
     camera.process_mouse_input(x_offset, y_offset);
+}
+
+void setup_square_vao() {
+    float vertex_data[] = {
+        -1,  1,
+         1,  1,
+        -1, -1,
+
+         1,  1,
+         1, -1,
+        -1, -1
+    };
+
+    glGenVertexArrays(1, &square_vao);
+    glBindVertexArray(square_vao);
+    u32 vertex_buffer;
+    glGenBuffers(1, &vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 6, vertex_data, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 }
 
 void load_node(Scene* scene, fastgltf::Asset* asset, u32 node_index)
@@ -397,6 +422,37 @@ i32 main(i32 argc, char** argv)
     init_pool(&pool);
     init_arena(&asset_arena, &pool);
 
+    u32 current_frame = 0;
+    u32 fbos[2];
+    u32 fbo_textures[2];
+    u32 depth_buffer[2];
+
+    glGenFramebuffers(2, fbos);
+    glGenTextures(2, fbo_textures);
+    glGenRenderbuffers(2, depth_buffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbos[0]);
+    glBindTexture(GL_TEXTURE_2D, fbo_textures[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[0], 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[0]);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer[0]);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbos[1]);
+    glBindTexture(GL_TEXTURE_2D, fbo_textures[1]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[1], 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[1]);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer[1]);
+
+    setup_square_vao();
+
     camera.init();
     Scene scene;
     init_scene(&scene);
@@ -417,21 +473,20 @@ i32 main(i32 argc, char** argv)
     MaterialShader shader = load_shader("shader/shader.vert", 
                                         "shader/shader.frag", 
                                         shader_features);
-
+    PostProcessShader post_shader = load_post_shader("shader/postprocess.vert",
+                                                     "shader/postprocess.frag");
 
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
                                             (float) width / (float) height, 
                                             0.01f, 1000.0f);
 
-    glEnable(GL_DEPTH_TEST);
     glFrontFace(GL_CCW);
-    glEnable(GL_CULL_FACE);
     glClearColor(0, 0, 0, 1);
-
-    glUseProgram(shader.id);
 
     float time_last_frame = glfwGetTime();
     float delta = 0;
+    u32 jitter_index = 0;
+    glm::vec2 dimensions = glm::vec2(width, height);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -441,6 +496,18 @@ i32 main(i32 argc, char** argv)
         float current_time = glfwGetTime();
         delta = current_time - time_last_frame;
         time_last_frame = current_time;
+        u32 next_frame = (current_frame + 1) % 2;
+
+        glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glUseProgram(shader.id);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, fbo_textures[next_frame]);
+        set_texture(shader.u_prev_frame, 0);
+        set_texture(shader.u_jitter_index, jitter_index);
+        set_vec2(shader.u_screen_dimensions, &dimensions);
 
         scene_update(&scene);
 
@@ -475,14 +542,14 @@ i32 main(i32 argc, char** argv)
 
                 set_vec4(shader.u_mat_color, &mat->color);
                 if (mat->flags & MATERIAL_BASE_TEXTURE) {
-                    glActiveTexture(GL_TEXTURE0);
+                    glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->diffuse_texture]);
-                    set_texture(shader.u_mat_diffuse, 0);
+                    set_texture(shader.u_mat_diffuse, 1);
                 }
                 if (mat->flags & MATERIAL_NORMAL_TEXTURE) {
-                    glActiveTexture(GL_TEXTURE1);
+                    glActiveTexture(GL_TEXTURE2);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->normal_texture]);
-                    set_texture(shader.u_mat_normal, 1);
+                    set_texture(shader.u_mat_normal, 2);
                 }
 
                 glBindVertexArray(prim->vao);
@@ -493,6 +560,20 @@ i32 main(i32 argc, char** argv)
             }
 
         }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glBindVertexArray(square_vao);
+        glUseProgram(post_shader.id);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, fbo_textures[current_frame]);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        current_frame = next_frame;
+        jitter_index = (jitter_index + 1) % 5;
 
         glfwSwapBuffers(window);
         glfwPollEvents();

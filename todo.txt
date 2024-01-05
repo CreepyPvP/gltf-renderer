@@ -1,8 +1,8 @@
 Read pbr material values
-Lighting
 Antialiasing
-
 Alpha blending
+Light probes + irradiance caching
+
 
 Specular textures
 Roughness textures

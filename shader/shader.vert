@@ -3,6 +3,7 @@ layout(location = 1) in vec3 aNorm;
 
 out vec3 out_norm;
 out vec3 out_pos;
+out vec3 prev_pos;
 
 #ifdef ATTRIB_UV
 layout(location = 2) in vec2 aUv;
@@ -23,6 +24,7 @@ void main() {
     vec4 world_pos = model * vec4(aPos, 1);
     out_pos = world_pos.xyz;
     gl_Position = proj_view * world_pos;
+    prev_pos = gl_Position.xyw;
 
 #ifdef ATTRIB_UV
     out_uv = aUv;

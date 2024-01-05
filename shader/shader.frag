@@ -4,8 +4,13 @@ uniform vec4 mat_color;
 
 in vec3 out_norm;
 in vec3 out_pos;
+in vec3 prev_pos;
 
 out vec4 out_Color;
+
+uniform sampler2D prev_frame;
+uniform int jitter_index;
+uniform vec2 screen_dimensions;
 
 #ifdef ATTRIB_UV
 in vec2 out_uv;
@@ -27,15 +32,27 @@ uniform vec3 camera_pos;
 
 vec3 light_dirs[] = {
     vec3(1, 2, 3),
-    vec3(1, 2, -3)
+    vec3(1, 2, -3),
+    vec3(1, -2, 0)
 };
 
 vec3 light_colors[] = {
     vec3(1.0, 1.0, 1.0),
+    vec3(0.2, 0.2, 0.3),
     vec3(0.2, 0.2, 0.3)
 };
 
-int light_count = 2;
+int light_count = 3;
+
+float jitter_strength = 0.5;
+
+vec2 jitter_offsets[] = {
+    vec2(1.0, -1.0),
+    vec2(0, 0),
+    vec2(-1.0, 1.0),
+    vec2(1.0, 1.0),
+    vec2(-1.0, -1.0),
+};
 
 vec3 fresnel(float u, vec3 f0) {
     return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0);
@@ -107,5 +124,9 @@ void main() {
         float dir = clamp(dot(n, l), 0, 1);
         color += brdf(v, l, n, diffuse_color, specular_color, roughness) * dir * light_colors[i];
     }
-    out_Color = vec4(color, base_color.a);
+
+    vec2 uv_prev = vec2(prev_pos.x / prev_pos.z, prev_pos.y / prev_pos.z);
+    uv_prev = (uv_prev + 1) / 2;
+    uv_prev += jitter_offsets[jitter_index] / screen_dimensions * jitter_strength;
+    out_Color = 0.7 * vec4(color, base_color.a) + 0.3 * texture(prev_frame, uv_prev);
 }

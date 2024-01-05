@@ -23,10 +23,21 @@ struct MaterialShader
     u32 u_mat_normal;
 
     u32 u_camera_pos;
+
+    u32 u_prev_frame;
+    u32 u_jitter_index;
+    u32 u_screen_dimensions;
+};
+
+struct PostProcessShader
+{
+    u32 id;
 };
 
 u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags);
+PostProcessShader load_post_shader(const char* vert, const char* frag);
 MaterialShader load_shader(const char* vert, const char* frag, u32 flags);
+
 void set_mat4(u32 uniform, glm::mat4* mat);
 void set_vec2(u32 uniform, glm::vec2* vec);
 void set_vec4(u32 uniform, glm::vec4* vec);

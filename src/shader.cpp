@@ -109,6 +109,16 @@ MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
     shader.u_mat_diffuse = glGetUniformLocation(shader.id, "mat_diffuse");
     shader.u_mat_normal = glGetUniformLocation(shader.id, "mat_normal");
     shader.u_camera_pos = glGetUniformLocation(shader.id, "camera_pos");
+    shader.u_prev_frame = glGetUniformLocation(shader.id, "prev_frame");
+    shader.u_jitter_index = glGetUniformLocation(shader.id, "jitter_index");
+    shader.u_screen_dimensions = glGetUniformLocation(shader.id, "screen_dimensions");
+    return shader;
+}
+
+PostProcessShader load_post_shader(const char* vert, const char* frag)
+{
+    PostProcessShader shader;
+    shader.id = create_shader(vert, frag, 0);
     return shader;
 }
 
