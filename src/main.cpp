@@ -155,7 +155,7 @@ void load_scene(Scene* scene, const char* file)
                                        material->pbrData.baseColorFactor[3]);
         if (material->pbrData.baseColorTexture.has_value()) {
             materials[i].diffuse_texture = material->pbrData.baseColorTexture.value().textureIndex;
-            materials[i].flags |= MATERIAL_DIFFUSE_TEXTURE;
+            materials[i].flags |= MATERIAL_BASE_TEXTURE;
         }
         if (material->pbrData.metallicRoughnessTexture.has_value()) {
             materials[i].roughness_texture = 
@@ -376,7 +376,6 @@ void init_window()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
     glfwSwapInterval(1);
 
     window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
@@ -412,7 +411,7 @@ i32 main(i32 argc, char** argv)
     load_scene(&scene, scene_file);
 
     u16 attrib_flags = ATTRIB_UV | ATTRIB_NORMAL | ATTRIB_TANGENT;
-    u16 mat_flags = MATERIAL_DIFFUSE_TEXTURE | MATERIAL_NORMAL_TEXTURE;
+    u16 mat_flags = MATERIAL_BASE_TEXTURE | MATERIAL_NORMAL_TEXTURE;
 
     u32 shader_features = (u32) mat_flags | (u32) attrib_flags << 16;
     MaterialShader shader = load_shader("shader/shader.vert", 
@@ -474,7 +473,7 @@ i32 main(i32 argc, char** argv)
                 Material* mat = materials + prim->material;
 
                 set_vec4(shader.u_mat_color, &mat->color);
-                if (mat->flags & MATERIAL_DIFFUSE_TEXTURE) {
+                if (mat->flags & MATERIAL_BASE_TEXTURE) {
                     glActiveTexture(GL_TEXTURE0);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->diffuse_texture]);
                     set_texture(shader.u_mat_diffuse, 0);

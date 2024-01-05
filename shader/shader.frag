@@ -15,7 +15,7 @@ in vec2 out_uv;
 in vec3 out_tangent;
 #endif
 
-#ifdef USE_DIFFUSE_TEXTURE
+#ifdef USE_BASE_TEXTURE
 uniform sampler2D mat_diffuse;
 #endif
 
@@ -47,21 +47,17 @@ float ndf(float noh, float roughness)
     return a2 / (PI * f * f);
 }
 
-vec3 brdf(vec3 v, vec3 l, vec3 n, vec3 diffuse_color)
+vec3 brdf(vec3 v, vec3 l, vec3 n, vec3 diffuse_color, vec3 specular_color, float roughness)
 {
     vec3 h = normalize(v + l);
 
     float nov = abs(dot(n, v)) + 1e-5;
-    float nol = clamp(dot(n, l), 0, 1);
-    float noh = clamp(dot(n, h), 0, 1);
-    float loh = clamp(dot(l, h), 0, 1);
-
-    float roughness = 0.4;
-    roughness = roughness * roughness;
-    vec3 f0 = vec3(0.01);
+    float nol = clamp(dot(n, l), 0.0, 1.0);
+    float noh = clamp(dot(n, h), 0.0, 1.0);
+    float loh = clamp(dot(l, h), 0.0, 1.0);
 
     float D = ndf(noh, roughness);
-    vec3 F = fresnel(loh, f0);
+    vec3 F = fresnel(loh, specular_color);
     float V = shadowing(nov, nol, roughness);
 
     vec3 fr = (D * V) * F;
@@ -81,16 +77,25 @@ void main() {
     n = normalize(tn.r * tan + tn.g * btan + tn.b * n);
 #endif
 
-#ifdef USE_DIFFUSE_TEXTURE
-    vec4 diffuse_color = texture(mat_diffuse, out_uv);
+#ifdef USE_BASE_TEXTURE
+    vec4 base_color = texture(mat_diffuse, out_uv);
 #else
-    vec4 diffuse_color = vec4(1, 1, 1, 1);
+    vec4 base_color = mat_color;
 #endif
 
-    // vec3 overall = diffuse_color.xyz * mat_color.xyz;
+    float metallic = 0;
+    float perceptual_roughness = 0.5;
+    float reflectance = 0.5;
 
-    vec3 color = brdf(v, l, n, diffuse_color.rgb);
-    out_Color = vec4(color, diffuse_color.a);
+    vec3 diffuse_color = (1.0 - metallic) * base_color.rgb;
+    vec3 specular_color = 0.16 * reflectance * reflectance * (1.0 - metallic) + 
+                            base_color.rgb * metallic;
+    float roughness = perceptual_roughness * perceptual_roughness;
+    roughness = clamp(roughness, 0.089, 1.0);
+
+    vec3 color = clamp(brdf(v, l, n, diffuse_color, specular_color, roughness), vec3(0), vec3(1)) 
+        * clamp(dot(n, l), 0, 1);
+    out_Color = vec4(color, base_color.a);
     // vec3 cold = vec3(0.02, 0.02, 0.025) + 0.55 * color;
     // vec3 warm = vec3(0.1, 0.05, 0) + color;
     // float light = dot(l, n);

@@ -1,5 +1,8 @@
-Basic pbr rendering (metallic, roughness, etc ...)
+Read pbr material values
+Lighting
 Antialiasing
+
+Alpha blending
 
 Specular textures
 Roughness textures

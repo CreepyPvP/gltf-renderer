@@ -3,7 +3,7 @@
 #include "include/defines.h"
 #include <glm/mat4x4.hpp>
 
-#define MATERIAL_DIFFUSE_TEXTURE 1 << 0
+#define MATERIAL_BASE_TEXTURE 1 << 0
 #define MATERIAL_NORMAL_TEXTURE 1 << 1
 #define MATERIAL_ROUGHNESS_TEXTURE 1 << 2
 

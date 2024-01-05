@@ -31,8 +31,8 @@ u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
     append_str(shader_header, "#version 440\n");
     append_str(shader_header, "#define ATTRIB_UV\n");
 
-    if (flags & MATERIAL_DIFFUSE_TEXTURE) {
-        append_str(shader_header, "#define USE_DIFFUSE_TEXTURE\n");
+    if (flags & MATERIAL_BASE_TEXTURE) {
+        append_str(shader_header, "#define USE_BASE_TEXTURE\n");
     }
     if (flags & MATERIAL_NORMAL_TEXTURE) {
         append_str(shader_header, "#define USE_NORMAL_TEXTURE\n");
