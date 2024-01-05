@@ -10,7 +10,7 @@ out vec2 out_uv;
 #endif
 
 #ifdef ATTRIB_TANGENT
-layout(location = 3) in vec3 aTangent;
+layout(location = 3) in vec4 aTangent;
 out vec3 out_tangent;
 #endif
 
@@ -29,6 +29,6 @@ void main() {
 #endif
 
 #ifdef ATTRIB_TANGENT
-    out_tangent = normalize((model * vec4(aTangent, 1)).xyz);
+    out_tangent = aTangent.w * normalize((model * aTangent).rgb);
 #endif
 }

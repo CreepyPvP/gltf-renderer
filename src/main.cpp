@@ -424,6 +424,7 @@ i32 main(i32 argc, char** argv)
                                             0.01f, 1000.0f);
 
     glEnable(GL_DEPTH_TEST);
+    glFrontFace(GL_CCW);
     glEnable(GL_CULL_FACE);
     glClearColor(0, 0, 0, 1);
 

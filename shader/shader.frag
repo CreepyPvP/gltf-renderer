@@ -25,8 +25,17 @@ uniform sampler2D mat_normal;
 
 uniform vec3 camera_pos;
 
-vec3 light_dir = vec3(1, 2, 3);
+vec3 light_dirs[] = {
+    vec3(1, 2, 3),
+    vec3(1, 2, -3)
+};
 
+vec3 light_colors[] = {
+    vec3(1.0, 1.0, 1.0),
+    vec3(0.2, 0.2, 0.3)
+};
+
+int light_count = 2;
 
 vec3 fresnel(float u, vec3 f0) {
     return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0);
@@ -65,7 +74,6 @@ vec3 brdf(vec3 v, vec3 l, vec3 n, vec3 diffuse_color, vec3 specular_color, float
 }
 
 void main() {
-    vec3 l = normalize(light_dir);
     vec3 v = normalize(camera_pos - out_pos);
     vec3 n = normalize(out_norm);
 
@@ -93,11 +101,11 @@ void main() {
     float roughness = perceptual_roughness * perceptual_roughness;
     roughness = clamp(roughness, 0.089, 1.0);
 
-    vec3 color = clamp(brdf(v, l, n, diffuse_color, specular_color, roughness), vec3(0), vec3(1)) 
-        * clamp(dot(n, l), 0, 1);
+    vec3 color = vec3(0);
+    for (int i = 0; i < light_count; ++i) {
+        vec3 l = normalize(light_dirs[i]);
+        float dir = clamp(dot(n, l), 0, 1);
+        color += brdf(v, l, n, diffuse_color, specular_color, roughness) * dir * light_colors[i];
+    }
     out_Color = vec4(color, base_color.a);
-    // vec3 cold = vec3(0.02, 0.02, 0.025) + 0.55 * color;
-    // vec3 warm = vec3(0.1, 0.05, 0) + color;
-    // float light = dot(l, n);
-    // out_Color = vec4(mix(cold, warm, light), 1);
 }
