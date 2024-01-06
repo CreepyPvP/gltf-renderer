@@ -15,9 +15,12 @@
 struct MaterialShader
 {
     u32 id;
+    u32 u_mat_color;
     u32 u_proj_view;
     u32 u_model;
-    u32 u_mat_color;
+
+    u32 u_prev_proj_view;
+    u32 u_prev_model;
 
     u32 u_mat_diffuse;
     u32 u_mat_normal;

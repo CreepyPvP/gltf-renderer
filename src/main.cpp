@@ -434,8 +434,10 @@ i32 main(i32 argc, char** argv)
     glBindFramebuffer(GL_FRAMEBUFFER, fbos[0]);
     glBindTexture(GL_TEXTURE_2D, fbo_textures[0]);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[0], 0);
     glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[0]);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
@@ -444,8 +446,10 @@ i32 main(i32 argc, char** argv)
     glBindFramebuffer(GL_FRAMEBUFFER, fbos[1]);
     glBindTexture(GL_TEXTURE_2D, fbo_textures[1]);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[1], 0);
     glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[1]);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
@@ -487,6 +491,8 @@ i32 main(i32 argc, char** argv)
     float delta = 0;
     u32 jitter_index = 0;
     glm::vec2 dimensions = glm::vec2(width, height);
+    glm::mat4 prev_proj_view = glm::mat4(1.0f);
+    glm::mat4 prev_model = glm::mat4(1.0f);
 
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -517,6 +523,8 @@ i32 main(i32 argc, char** argv)
                                      glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 proj_view = projection * view;
         set_mat4(shader.u_proj_view, &proj_view);
+        set_mat4(shader.u_prev_proj_view, &prev_proj_view);
+        prev_proj_view = proj_view;
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -534,6 +542,8 @@ i32 main(i32 argc, char** argv)
             res = glm::rotate(res, glm::radians(obj->transform.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
             res = glm::scale(res, obj->transform.scale);
             set_mat4(shader.u_model, &res);
+            set_mat4(shader.u_prev_model, &prev_model);
+            prev_model = res;
 
 
             for (u32 j = 0; j < meshes[mesh_id].primitive_count; ++j) {

@@ -4,13 +4,13 @@ uniform vec4 mat_color;
 
 in vec3 out_norm;
 in vec3 out_pos;
-in vec3 prev_pos;
+
+in vec3 prev_screen_pos;
+in vec3 screen_pos;
 
 out vec4 out_Color;
 
 uniform sampler2D prev_frame;
-uniform int jitter_index;
-uniform vec2 screen_dimensions;
 
 #ifdef ATTRIB_UV
 in vec2 out_uv;
@@ -43,16 +43,6 @@ vec3 light_colors[] = {
 };
 
 int light_count = 3;
-
-float jitter_strength = 0.5;
-
-vec2 jitter_offsets[] = {
-    vec2(1.0, -1.0),
-    vec2(0, 0),
-    vec2(-1.0, 1.0),
-    vec2(1.0, 1.0),
-    vec2(-1.0, -1.0),
-};
 
 vec3 fresnel(float u, vec3 f0) {
     return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0);
@@ -125,8 +115,20 @@ void main() {
         color += brdf(v, l, n, diffuse_color, specular_color, roughness) * dir * light_colors[i];
     }
 
-    vec2 uv_prev = vec2(prev_pos.x / prev_pos.z, prev_pos.y / prev_pos.z);
+    color = clamp(color, 0, 10);
+
+    vec2 uv_prev = vec2(prev_screen_pos.x / prev_screen_pos.z, 
+                        prev_screen_pos.y / prev_screen_pos.z);
+    vec2 uv_current = vec2(screen_pos.x / screen_pos.z, 
+                        screen_pos.y / screen_pos.z);
+
+    float speed = length(uv_prev - uv_current);
+    float blend_weight = 0.1 + 20 * speed;
+
+    blend_weight = clamp(blend_weight, 0, 1);
     uv_prev = (uv_prev + 1) / 2;
-    uv_prev += jitter_offsets[jitter_index] / screen_dimensions * jitter_strength;
-    out_Color = 0.7 * vec4(color, base_color.a) + 0.3 * texture(prev_frame, uv_prev);
+    // out_Color = 
+    //     blend_weight * vec4(color, base_color.a) + 
+    //     (1 - blend_weight) * texture(prev_frame, uv_prev);
+    out_Color = vec4(speed, speed, speed, 1);
 }

@@ -105,6 +105,8 @@ MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
     shader.id = create_shader(vert, frag, flags);
     shader.u_proj_view = glGetUniformLocation(shader.id, "proj_view");
     shader.u_model = glGetUniformLocation(shader.id, "model");
+    shader.u_prev_proj_view = glGetUniformLocation(shader.id, "prev_proj_view");
+    shader.u_prev_model = glGetUniformLocation(shader.id, "prev_model");
     shader.u_mat_color = glGetUniformLocation(shader.id, "mat_color");
     shader.u_mat_diffuse = glGetUniformLocation(shader.id, "mat_diffuse");
     shader.u_mat_normal = glGetUniformLocation(shader.id, "mat_normal");
