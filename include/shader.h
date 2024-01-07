@@ -27,7 +27,6 @@ struct MaterialShader
 
     u32 u_camera_pos;
 
-    u32 u_prev_frame;
     u32 u_jitter_index;
     u32 u_screen_dimensions;
 };
@@ -37,8 +36,18 @@ struct PostProcessShader
     u32 id;
 };
 
+struct TaaShader
+{
+    u32 id;
+    u32 u_current_frame;
+    u32 u_velocity;
+    u32 u_prev_frame;
+    u32 u_screen_dimensions;
+};
+
 u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags);
 PostProcessShader load_post_shader(const char* vert, const char* frag);
+TaaShader load_taa_shader(const char* vert, const char* frag);
 MaterialShader load_shader(const char* vert, const char* frag, u32 flags);
 
 void set_mat4(u32 uniform, glm::mat4* mat);

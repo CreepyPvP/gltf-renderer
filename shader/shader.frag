@@ -8,9 +8,8 @@ in vec3 out_pos;
 in vec3 prev_screen_pos;
 in vec3 screen_pos;
 
-out vec4 out_Color;
-
-uniform sampler2D prev_frame;
+layout (location = 0) out vec3 out_Color;
+layout (location = 1) out vec2 out_Velocity;
 
 #ifdef ATTRIB_UV
 in vec2 out_uv;
@@ -122,13 +121,7 @@ void main() {
     vec2 uv_current = vec2(screen_pos.x / screen_pos.z, 
                         screen_pos.y / screen_pos.z);
 
-    float speed = length(uv_prev - uv_current);
-    float blend_weight = 0.1 + 20 * speed;
-
-    blend_weight = clamp(blend_weight, 0, 1);
-    uv_prev = (uv_prev + 1) / 2;
-    // out_Color = 
-    //     blend_weight * vec4(color, base_color.a) + 
-    //     (1 - blend_weight) * texture(prev_frame, uv_prev);
-    out_Color = vec4(speed, speed, speed, 1);
+    // Times 100 for less accuracy loss
+    out_Velocity = (uv_current - uv_prev) * 100;
+    out_Color = color;
 }

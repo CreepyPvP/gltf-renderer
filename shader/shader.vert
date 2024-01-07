@@ -45,9 +45,9 @@ void main() {
     mat4 jitter_mat = mat4(1.0);
     jitter_mat[3][0] += jitter_offsets[jitter_index].x * jitter_strength / screen_dimensions.x;
     jitter_mat[3][1] += jitter_offsets[jitter_index].y * jitter_strength / screen_dimensions.y;
-    gl_Position = jitter_mat * proj_view * world_pos;
+    gl_Position = proj_view * world_pos;
 
-    prev_screen_pos = (jitter_mat * prev_proj_view * prev_model * vec4(aPos, 1)).xyw;
+    prev_screen_pos = (prev_proj_view * prev_model * vec4(aPos, 1)).xyw;
     screen_pos = gl_Position.xyw;
 
 #ifdef ATTRIB_UV

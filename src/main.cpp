@@ -423,37 +423,60 @@ i32 main(i32 argc, char** argv)
     init_arena(&asset_arena, &pool);
 
     u32 current_frame = 0;
-    u32 fbos[2];
-    u32 fbo_textures[2];
-    u32 depth_buffer[2];
+    u32 fbos[3];
+    u32 fbo_textures[4];
+    u32 depth_buffer;
 
-    glGenFramebuffers(2, fbos);
-    glGenTextures(2, fbo_textures);
-    glGenRenderbuffers(2, depth_buffer);
+    glGenFramebuffers(3, fbos);
+    glGenTextures(4, fbo_textures);
+    glGenRenderbuffers(1, &depth_buffer);
 
+    // History buffer 0
     glBindFramebuffer(GL_FRAMEBUFFER, fbos[0]);
     glBindTexture(GL_TEXTURE_2D, fbo_textures[0]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[0], 0);
-    glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[0]);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer[0]);
+    u32 hbuffers[] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, hbuffers);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // History buffer 1
     glBindFramebuffer(GL_FRAMEBUFFER, fbos[1]);
     glBindTexture(GL_TEXTURE_2D, fbo_textures[1]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[1], 0);
-    glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer[1]);
+    glDrawBuffers(1, hbuffers);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Main pass buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, fbos[2]);
+    glBindTexture(GL_TEXTURE_2D, fbo_textures[2]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[2], 0);
+    glBindTexture(GL_TEXTURE_2D, fbo_textures[3]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, fbo_textures[3], 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, depth_buffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer[1]);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_buffer);
+    u32 buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, buffers);
 
     setup_square_vao();
 
@@ -479,6 +502,8 @@ i32 main(i32 argc, char** argv)
                                         shader_features);
     PostProcessShader post_shader = load_post_shader("shader/postprocess.vert",
                                                      "shader/postprocess.frag");
+    TaaShader taa_shader = load_taa_shader("shader/taa.vert",
+                                           "shader/taa.frag");
 
     glm::mat4 projection = glm::perspective(glm::radians(55.0f), 
                                             (float) width / (float) height, 
@@ -504,14 +529,12 @@ i32 main(i32 argc, char** argv)
         time_last_frame = current_time;
         u32 next_frame = (current_frame + 1) % 2;
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
+        // glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbos[2]);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glUseProgram(shader.id);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, fbo_textures[next_frame]);
-        set_texture(shader.u_prev_frame, 0);
         set_texture(shader.u_jitter_index, jitter_index);
         set_vec2(shader.u_screen_dimensions, &dimensions);
 
@@ -552,14 +575,14 @@ i32 main(i32 argc, char** argv)
 
                 set_vec4(shader.u_mat_color, &mat->color);
                 if (mat->flags & MATERIAL_BASE_TEXTURE) {
-                    glActiveTexture(GL_TEXTURE1);
+                    glActiveTexture(GL_TEXTURE0);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->diffuse_texture]);
-                    set_texture(shader.u_mat_diffuse, 1);
+                    set_texture(shader.u_mat_diffuse, 0);
                 }
                 if (mat->flags & MATERIAL_NORMAL_TEXTURE) {
-                    glActiveTexture(GL_TEXTURE2);
+                    glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->normal_texture]);
-                    set_texture(shader.u_mat_normal, 2);
+                    set_texture(shader.u_mat_normal, 1);
                 }
 
                 glBindVertexArray(prim->vao);
@@ -571,12 +594,27 @@ i32 main(i32 argc, char** argv)
 
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         glBindVertexArray(square_vao);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
+        // glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(taa_shader.id);
+        set_vec2(taa_shader.u_screen_dimensions, &dimensions);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, fbo_textures[2]);
+        set_texture(taa_shader.u_current_frame, 0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, fbo_textures[3]);
+        set_texture(taa_shader.u_velocity, 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, fbo_textures[next_frame]);
+        set_texture(taa_shader.u_prev_frame, 2);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(post_shader.id);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[current_frame]);
