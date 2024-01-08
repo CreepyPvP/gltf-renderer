@@ -12,7 +12,7 @@ void main()
 {
     vec2 uv = (pos + 1) / 2;
     vec2 vel = texture(velocity, uv).xy;
-    vec2 uv_prev = uv - (vel / 100);
+    vec2 prev_uv = uv - (vel / 100);
 
     vec2 pixel = vec2(1) / dimensions;
 
@@ -33,9 +33,14 @@ void main()
         max_color = max(color_sample, max_color);
     }
 
-    vec3 prev_sample = texture(prev_frame, uv_prev).rgb;
+    vec3 prev_sample = texture(prev_frame, prev_uv).rgb;
     prev_sample = max(prev_sample, min_color);
     prev_sample = min(prev_sample, max_color);
 
-    out_Color = 0.5 * texture(current_frame, uv) + 0.5 * vec4(prev_sample, 1);
+    float blend = 0.1;
+    if (prev_uv.x < 0 || prev_uv.x > 1 || prev_uv.y < 0 || prev_uv.y > 1) {
+        blend = 1;
+    }
+
+    out_Color = blend * texture(current_frame, uv) + (1 - blend) * vec4(prev_sample, 1);
 }

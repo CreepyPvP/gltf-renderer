@@ -25,7 +25,7 @@ uniform mat4 prev_model;
 uniform int jitter_index;
 uniform vec2 screen_dimensions;
 
-float jitter_strength = 0.4;
+float jitter_strength = 0.5;
 
 vec2 jitter_offsets[] = {
     vec2(1.0, 1.0),
@@ -45,10 +45,10 @@ void main() {
     mat4 jitter_mat = mat4(1.0);
     jitter_mat[3][0] += jitter_offsets[jitter_index].x * jitter_strength / screen_dimensions.x;
     jitter_mat[3][1] += jitter_offsets[jitter_index].y * jitter_strength / screen_dimensions.y;
-    gl_Position = proj_view * world_pos;
+    gl_Position = jitter_mat * proj_view * world_pos;
 
     prev_screen_pos = (prev_proj_view * prev_model * vec4(aPos, 1)).xyw;
-    screen_pos = gl_Position.xyw;
+    screen_pos = (proj_view * world_pos).xyw;
 
 #ifdef ATTRIB_UV
     out_uv = aUv;
