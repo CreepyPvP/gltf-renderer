@@ -120,6 +120,7 @@ PostProcessShader load_post_shader(const char* vert, const char* frag)
 {
     PostProcessShader shader;
     shader.id = create_shader(vert, frag, 0);
+    shader.u_screen_dimensions = glGetUniformLocation(shader.id, "dimensions");
     return shader;
 }
 
@@ -128,6 +129,7 @@ TaaShader load_taa_shader(const char* vert, const char* frag)
     TaaShader shader;
     shader.id = create_shader(vert, frag, 0);
     shader.u_current_frame = glGetUniformLocation(shader.id, "current_frame");
+    shader.u_current_depth = glGetUniformLocation(shader.id, "current_depth");
     shader.u_velocity = glGetUniformLocation(shader.id, "velocity");
     shader.u_prev_frame = glGetUniformLocation(shader.id, "prev_frame");
     shader.u_screen_dimensions = glGetUniformLocation(shader.id, "dimensions");

@@ -117,11 +117,11 @@ void main() {
     color = clamp(color, 0, 10);
 
     vec2 uv_prev = vec2(prev_screen_pos.x / prev_screen_pos.z, 
-                        prev_screen_pos.y / prev_screen_pos.z);
+                        prev_screen_pos.y / prev_screen_pos.z) * 0.5 + 0.5;
     vec2 uv_current = vec2(screen_pos.x / screen_pos.z, 
-                        screen_pos.y / screen_pos.z);
+                        screen_pos.y / screen_pos.z) * 0.5 + 0.5;
 
-    // Times 100 for less accuracy loss
-    out_Velocity = (uv_current - uv_prev) * 100;
+    // out_Velocity = uv_current - uv_prev;
+    out_Velocity = uv_current - uv_prev;
     out_Color = color;
 }

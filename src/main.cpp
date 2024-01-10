@@ -466,7 +466,7 @@ i32 main(i32 argc, char** argv)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_textures[2], 0);
     glBindTexture(GL_TEXTURE_2D, fbo_textures[3]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -565,9 +565,7 @@ i32 main(i32 argc, char** argv)
             res = glm::rotate(res, glm::radians(obj->transform.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
             res = glm::scale(res, obj->transform.scale);
             set_mat4(shader.u_model, &res);
-            set_mat4(shader.u_prev_model, &prev_model);
-            prev_model = res;
-
+            set_mat4(shader.u_prev_model, &res);
 
             for (u32 j = 0; j < meshes[mesh_id].primitive_count; ++j) {
                 Primitive* prim = meshes[mesh_id].primitives + j;
@@ -611,6 +609,9 @@ i32 main(i32 argc, char** argv)
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[next_frame]);
         set_texture(taa_shader.u_prev_frame, 2);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, depth_buffer);
+        set_texture(taa_shader.u_current_depth, 3);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -618,6 +619,7 @@ i32 main(i32 argc, char** argv)
         glUseProgram(post_shader.id);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[current_frame]);
+        set_vec2(post_shader.u_screen_dimensions, &dimensions);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         current_frame = next_frame;

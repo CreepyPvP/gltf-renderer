@@ -34,12 +34,14 @@ struct MaterialShader
 struct PostProcessShader
 {
     u32 id;
+    u32 u_screen_dimensions;
 };
 
 struct TaaShader
 {
     u32 id;
     u32 u_current_frame;
+    u32 u_current_depth;
     u32 u_velocity;
     u32 u_prev_frame;
     u32 u_screen_dimensions;
