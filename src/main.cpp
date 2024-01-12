@@ -599,6 +599,7 @@ i32 main(i32 argc, char** argv)
         glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
         // glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(taa_shader.id);
+        set_texture(taa_shader.u_jitter_index, jitter_index);
         set_vec2(taa_shader.u_screen_dimensions, &dimensions);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[2]);
@@ -623,7 +624,7 @@ i32 main(i32 argc, char** argv)
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         current_frame = next_frame;
-        jitter_index = (jitter_index + 1) % 5;
+        jitter_index = (jitter_index + 1) % 4;
 
         glfwSwapBuffers(window);
         glfwPollEvents();

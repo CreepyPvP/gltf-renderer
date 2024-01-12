@@ -22,9 +22,9 @@ void main()
     );
 
     float kernel[9] = {
-        -1, -1, -1,
-        -1,  9, -1,
-        -1, -1, -1
+        0,  -1, 0,
+        -1, 5, -1,
+        0,  -1, 0
     };
     
     vec3 col = vec3(0.0);
@@ -33,4 +33,5 @@ void main()
     }
 
     out_Color = vec4(col, 1);
+    // out_Color = texture(color_buffer, uv);
 }

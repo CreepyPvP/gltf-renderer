@@ -133,6 +133,7 @@ TaaShader load_taa_shader(const char* vert, const char* frag)
     shader.u_velocity = glGetUniformLocation(shader.id, "velocity");
     shader.u_prev_frame = glGetUniformLocation(shader.id, "prev_frame");
     shader.u_screen_dimensions = glGetUniformLocation(shader.id, "dimensions");
+    shader.u_jitter_index = glGetUniformLocation(shader.id, "jitter_index");
     return shader;
 }
 

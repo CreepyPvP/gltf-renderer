@@ -1,5 +1,14 @@
-Read pbr material values
 Antialiasing
+    Fix blurring
+    Screen borders
+    Anti flicker term
+    Ghosting (depth rejection?)
+
+    (Maybe try halton sequence for jitter?)
+    (Try halton offset for sampling color buffer)
+
+
+Read pbr material values
 Alpha blending
 Light probes + irradiance caching
 
