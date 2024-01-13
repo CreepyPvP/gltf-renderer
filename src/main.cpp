@@ -33,6 +33,9 @@ struct Material
     u32 diffuse_texture;
     u32 normal_texture;
     u32 roughness_texture;
+
+    float roughness_factor;
+    float metallic_factor;
 };
 
 struct Primitive 
@@ -188,6 +191,8 @@ void load_scene(Scene* scene, const char* file)
                                        material->pbrData.baseColorFactor[1],
                                        material->pbrData.baseColorFactor[2],
                                        material->pbrData.baseColorFactor[3]);
+        materials[i].roughness_factor = material->pbrData.roughnessFactor;
+        materials[i].metallic_factor = material->pbrData.metallicFactor;
         if (material->pbrData.baseColorTexture.has_value()) {
             materials[i].diffuse_texture = material->pbrData.baseColorTexture.value().textureIndex;
             materials[i].flags |= MATERIAL_BASE_TEXTURE;
@@ -512,7 +517,7 @@ i32 main(i32 argc, char** argv)
     load_scene(&scene, scene_file);
 
     u16 attrib_flags = ATTRIB_UV | ATTRIB_NORMAL | ATTRIB_TANGENT;
-    u16 mat_flags = MATERIAL_BASE_TEXTURE | MATERIAL_NORMAL_TEXTURE;
+    u16 mat_flags = MATERIAL_BASE_TEXTURE | MATERIAL_NORMAL_TEXTURE | MATERIAL_ROUGHNESS_TEXTURE;
 
     u32 shader_features = (u32) mat_flags | (u32) attrib_flags << 16;
     MaterialShader shader = load_shader("shader/shader.vert", 
@@ -547,7 +552,6 @@ i32 main(i32 argc, char** argv)
         time_last_frame = current_time;
         u32 next_frame = (current_frame + 1) % 2;
 
-        // glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
         glBindFramebuffer(GL_FRAMEBUFFER, fbos[2]);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
@@ -589,7 +593,10 @@ i32 main(i32 argc, char** argv)
                 Primitive* prim = meshes[mesh_id].primitives + j;
                 Material* mat = materials + prim->material;
 
+                glm::vec2 pbr_data = glm::vec2(mat->metallic_factor, mat->roughness_factor);
+
                 set_vec4(shader.u_mat_color, &mat->color);
+                set_vec2(shader.u_mat_pbr, &pbr_data);
                 if (mat->flags & MATERIAL_BASE_TEXTURE) {
                     glActiveTexture(GL_TEXTURE0);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->diffuse_texture]);
@@ -599,6 +606,11 @@ i32 main(i32 argc, char** argv)
                     glActiveTexture(GL_TEXTURE1);
                     glBindTexture(GL_TEXTURE_2D, textures[mat->normal_texture]);
                     set_texture(shader.u_mat_normal, 1);
+                }
+                if (mat->flags & MATERIAL_ROUGHNESS_TEXTURE) {
+                    glActiveTexture(GL_TEXTURE2);
+                    glBindTexture(GL_TEXTURE_2D, textures[mat->roughness_texture]);
+                    set_texture(shader.u_mat_roughness, 2);
                 }
 
                 glBindVertexArray(prim->vao);

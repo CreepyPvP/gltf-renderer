@@ -1,6 +1,8 @@
 #define PI 3.14
 
 uniform vec4 mat_color;
+// .x metallic, .y roughness
+uniform vec2 mat_pbr;
 
 in vec3 out_norm;
 in vec3 out_pos;
@@ -25,6 +27,10 @@ uniform sampler2D mat_diffuse;
 
 #ifdef USE_NORMAL_TEXTURE
 uniform sampler2D mat_normal;
+#endif
+
+#ifdef USE_ROUGHNESS_TEXTURE
+uniform sampler2D mat_roughness;
 #endif
 
 uniform vec3 camera_pos;
@@ -97,9 +103,15 @@ void main() {
     vec4 base_color = mat_color;
 #endif
 
-    float metallic = 0;
-    float perceptual_roughness = 0.5;
+    float metallic = mat_pbr.x;
+    float perceptual_roughness = mat_pbr.y;
     float reflectance = 0.5;
+
+#ifdef USE_ROUGHNESS_TEXTURE
+    vec2 metallic_roughness = texture(mat_roughness, out_uv).gb;
+    perceptual_roughness *= metallic_roughness.x;
+    metallic *= metallic_roughness.y;
+#endif
 
     vec3 diffuse_color = (1.0 - metallic) * base_color.rgb;
     vec3 specular_color = 0.16 * reflectance * reflectance * (1.0 - metallic) + 
@@ -113,8 +125,6 @@ void main() {
         float dir = clamp(dot(n, l), 0, 1);
         color += brdf(v, l, n, diffuse_color, specular_color, roughness) * dir * light_colors[i];
     }
-
-    color = clamp(color, 0, 10);
 
     vec2 uv_prev = vec2(prev_screen_pos.x / prev_screen_pos.z, 
                         prev_screen_pos.y / prev_screen_pos.z) * 0.5 + 0.5;

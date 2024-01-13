@@ -1,10 +1,11 @@
-Read pbr material values
+Alpha blending (Transparency)
 
 Antialiasing
     Fix blurring (Adaptive blend factor)
     Screen borders
     Anti flicker term
     Ghosting (depth rejection?)
+    1 Pixel ghosting
 
     (Maybe try halton sequence for jitter?)
     (Try halton offset for sampling color buffer)
@@ -12,7 +13,6 @@ Antialiasing
     Cleanup / basic optimization
 
 
-Alpha blending (Transparency)
 Light probes + irradiance caching
 
 Specular textures

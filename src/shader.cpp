@@ -37,6 +37,9 @@ u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags)
     if (flags & MATERIAL_NORMAL_TEXTURE) {
         append_str(shader_header, "#define USE_NORMAL_TEXTURE\n");
     }
+    if (flags & MATERIAL_ROUGHNESS_TEXTURE) {
+        append_str(shader_header, "#define USE_ROUGHNESS_TEXTURE\n");
+    }
     if (flags >> 16 & ATTRIB_NORMAL) {
         append_str(shader_header, "#define ATTRIB_NORMAL\n");
     }
@@ -108,8 +111,10 @@ MaterialShader load_shader(const char* vert, const char* frag, u32 flags)
     shader.u_prev_proj_view = glGetUniformLocation(shader.id, "prev_proj_view");
     shader.u_prev_model = glGetUniformLocation(shader.id, "prev_model");
     shader.u_mat_color = glGetUniformLocation(shader.id, "mat_color");
+    shader.u_mat_pbr = glGetUniformLocation(shader.id, "mat_pbr");
     shader.u_mat_diffuse = glGetUniformLocation(shader.id, "mat_diffuse");
     shader.u_mat_normal = glGetUniformLocation(shader.id, "mat_normal");
+    shader.u_mat_roughness = glGetUniformLocation(shader.id, "mat_roughness");
     shader.u_camera_pos = glGetUniformLocation(shader.id, "camera_pos");
     shader.u_jitter_index = glGetUniformLocation(shader.id, "jitter_index");
     shader.u_screen_dimensions = glGetUniformLocation(shader.id, "screen_dimensions");
