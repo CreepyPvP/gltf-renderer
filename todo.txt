@@ -1,5 +1,3 @@
-Alpha blending (Transparency)
-
 Antialiasing
     Fix blurring (Adaptive blend factor)
     Screen borders
@@ -15,14 +13,13 @@ Antialiasing
 
 Light probes + irradiance caching
 
-Specular textures
-Roughness textures
 Occulsion textures
 
 Shader managment
 
 Animations
 Skinning
+Alpha blending
 
 Better resource managment here (also store names somewhere)
 

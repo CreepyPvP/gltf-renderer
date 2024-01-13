@@ -102,6 +102,9 @@ void main() {
 #else
     vec4 base_color = mat_color;
 #endif
+    if (base_color.a < 0.5) {
+        discard;
+    }
 
     float metallic = mat_pbr.x;
     float perceptual_roughness = mat_pbr.y;
