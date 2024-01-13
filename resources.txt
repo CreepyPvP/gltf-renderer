@@ -1,0 +1,10 @@
+
+Taa:
+https://alextardif.com/TAA.html
+https://www.elopezr.com/temporal-aa-and-the-quest-for-the-holy-trail/
+https://developer.download.nvidia.com/gameworks/events/GDC2016/msalvi_temporal_supersampling.pdf
+
+
+Pbr:
+https://google.github.io/filament/Filament.html#lighting
+

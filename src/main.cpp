@@ -52,8 +52,8 @@ struct Mesh
     u32 primitive_count;
 };
 
-const u32 width = 1280;
-const u32 height = 720;
+u32 width = 1280;
+u32 height = 720;
 
 GLFWwindow *window;
 float last_mouse_pos_x;
@@ -67,9 +67,19 @@ u32* textures;
 
 u32 square_vao;
 
+u32 fbos[3];
+u32 fbo_textures[4];
+u32 depth_buffer;
 
-void resize_callback(GLFWwindow *window, i32 width, i32 height) 
+
+void setup_framebuffer(bool);
+
+void resize_callback(GLFWwindow *window, i32 new_width, i32 new_height) 
 {
+    width = new_width;
+    height = new_height;
+    glViewport(0, 0, width, height);
+    setup_framebuffer(true);
 }
 
 void mouse_callback(GLFWwindow* window, double pos_x, double pos_y) 
@@ -394,38 +404,13 @@ void load_scene(Scene* scene, const char* file)
     dispose(&arena);
 }
 
-void init_window() 
+void setup_framebuffer(bool do_cleanup) 
 {
-    glfwInit();
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwSwapInterval(1);
-
-    window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
-    glfwSetFramebufferSizeCallback(window, resize_callback);
-
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window, mouse_callback);
-    glfwMakeContextCurrent(window);
-}
-
-i32 main(i32 argc, char** argv) 
-{
-    init_window();
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        printf("failed to load required extensions\n");
-        return 1;
+    if (do_cleanup) {
+        glDeleteFramebuffers(3, fbos);
+        glDeleteTextures(4, fbo_textures);
+        glDeleteRenderbuffers(1, &depth_buffer);
     }
-
-    init_pool(&pool);
-    init_arena(&asset_arena, &pool);
-
-    u32 current_frame = 0;
-    u32 fbos[3];
-    u32 fbo_textures[4];
-    u32 depth_buffer;
 
     glGenFramebuffers(3, fbos);
     glGenTextures(4, fbo_textures);
@@ -478,6 +463,39 @@ i32 main(i32 argc, char** argv)
     u32 buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
     glDrawBuffers(2, buffers);
 
+}
+
+void init_window() 
+{
+    glfwInit();
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwSwapInterval(1);
+
+    window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
+    glfwSetFramebufferSizeCallback(window, resize_callback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwMakeContextCurrent(window);
+}
+
+i32 main(i32 argc, char** argv) 
+{
+    init_window();
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        printf("failed to load required extensions\n");
+        return 1;
+    }
+
+    init_pool(&pool);
+    init_arena(&asset_arena, &pool);
+
+    u32 current_frame = 0;
+
+    setup_framebuffer(false);
     setup_square_vao();
 
     camera.init();
