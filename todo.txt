@@ -11,6 +11,7 @@ Antialiasing
     Cleanup / basic optimization
 
 
+Directional shadows
 Light probes + irradiance caching
 
 Occulsion textures

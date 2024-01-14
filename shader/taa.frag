@@ -8,14 +8,14 @@ uniform sampler2D velocity;
 
 uniform vec2 dimensions;
 uniform int jitter_index;
+uniform int sample_offset;
 
 float jitter_strength = 0.5;
+float sample_offset_strength = 0.1;
 
-vec2 jitter_offsets[] = {
-    vec2(1.0, 1.0),
-    vec2(-1.0, 1.0),
-    vec2(1.0, -1.0),
-    vec2(-1.0, -1.0),
+layout (std140, binding = 2) uniform Halton
+{
+    vec2 halton[128];
 };
 
 
@@ -24,8 +24,12 @@ void main()
     vec2 pixel = vec2(1) / dimensions;
 
     vec2 uv = (pos + 1) / 2;
-    vec2 uv_unjitterd = uv + pixel * jitter_strength * jitter_offsets[jitter_index];
-    // vec2 uv_unjitterd = uv;
+
+    vec2 jitter_correction = pixel * jitter_strength * halton[jitter_index];
+    // vec2 sample_offset = pixel * sample_offset_strength * halton[sample_offset];
+    vec2 sample_offset = vec2(0);
+    // vec2 uv_jittered = uv + jitter_correction;
+    vec2 uv_jittered = uv;
 
     vec3 min_color = vec3(1);
     vec3 max_color = vec3(0);
@@ -34,7 +38,7 @@ void main()
 
     for (int x = -1; x <= 1; ++x) {
         for (int y = -1; y <= 1; ++y) {
-            vec2 sample_uv = uv_unjitterd + vec2(x * pixel.x, y * pixel.y);
+            vec2 sample_uv = uv_jittered + vec2(x * pixel.x, y * pixel.y);
             sample_uv = clamp(sample_uv, 0, 1);
 
             vec3 sample_color = max(vec3(0), texture(current_frame, sample_uv).rgb); 
@@ -53,7 +57,8 @@ void main()
     }
 
     vec2 prev_uv = uv - vel;
-    vec3 source_sample = texture(current_frame, uv_unjitterd).rgb;
+
+    vec3 source_sample = texture(current_frame, uv_jittered + sample_offset).rgb;
 
     if (prev_uv.x < 0 || prev_uv.x > 1 || prev_uv.y < 0 || prev_uv.y > 1) {
         out_Color = vec4(source_sample, 1);
@@ -65,5 +70,4 @@ void main()
 
     // TODO: Apply anti flickering
     out_Color = 0.05 * vec4(source_sample, 1) + 0.95 * vec4(prev_sample, 1);
-    // out_Color = vec4(sigma, 1);
 }

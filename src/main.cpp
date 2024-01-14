@@ -73,6 +73,7 @@ u32 square_vao;
 u32 fbos[3];
 u32 fbo_textures[4];
 u32 depth_buffer;
+u32 ubos[1];
 
 
 void setup_framebuffer(bool);
@@ -468,6 +469,8 @@ void setup_framebuffer(bool do_cleanup)
     u32 buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
     glDrawBuffers(2, buffers);
 
+    // Halton ubo
+
 }
 
 void init_window() 
@@ -485,6 +488,19 @@ void init_window()
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwMakeContextCurrent(window);
+}
+
+float halton(u32 i, u32 b)
+{
+    float f = 1;
+    float r = 0;
+    while (i > 0) {
+        f = f / b;
+        r += f * (i % b);
+        i = floor(i / b);
+    }
+
+    return r;
 }
 
 i32 main(i32 argc, char** argv) 
@@ -516,6 +532,18 @@ i32 main(i32 argc, char** argv)
     printf("Loading file: %s\n", scene_file);
     load_scene(&scene, scene_file);
 
+    {
+        glGenBuffers(1, ubos);
+        glBindBuffer(GL_UNIFORM_BUFFER, ubos[0]);
+        glm::vec4 halton_points[128];
+        for (u32 i = 0; i < 128; ++i) {
+            halton_points[i] = glm::vec4(halton(i, 2) * 2 - 1, halton(i, 3) * 2 - 1, 0, 0);
+        }
+        // Hint: GL_STATIC_READ would probably cause the buffer to be allocated on cpu memory
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(halton_points), halton_points, GL_STATIC_DRAW);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubos[0]);
+    }
+
     u16 attrib_flags = ATTRIB_UV | ATTRIB_NORMAL | ATTRIB_TANGENT;
     u16 mat_flags = MATERIAL_BASE_TEXTURE | MATERIAL_NORMAL_TEXTURE | MATERIAL_ROUGHNESS_TEXTURE;
 
@@ -538,6 +566,7 @@ i32 main(i32 argc, char** argv)
     float time_last_frame = glfwGetTime();
     float delta = 0;
     u32 jitter_index = 0;
+    u32 sample_offset = 69;
     glm::vec2 dimensions = glm::vec2(width, height);
     glm::mat4 prev_proj_view = glm::mat4(1.0f);
     glm::mat4 prev_model = glm::mat4(1.0f);
@@ -630,6 +659,7 @@ i32 main(i32 argc, char** argv)
         // glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(taa_shader.id);
         set_texture(taa_shader.u_jitter_index, jitter_index);
+        set_texture(taa_shader.u_sample_offset, sample_offset);
         set_vec2(taa_shader.u_screen_dimensions, &dimensions);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[2]);
@@ -654,7 +684,8 @@ i32 main(i32 argc, char** argv)
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         current_frame = next_frame;
-        jitter_index = (jitter_index + 1) % 4;
+        jitter_index = (jitter_index + 1) % 128;
+        sample_offset = (sample_offset + 1) % 128;
 
         glfwSwapBuffers(window);
         glfwPollEvents();

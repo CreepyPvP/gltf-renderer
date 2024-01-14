@@ -47,6 +47,7 @@ vec3 light_colors[] = {
     vec3(0.2, 0.2, 0.3)
 };
 
+
 int light_count = 3;
 
 vec3 fresnel(float u, vec3 f0) {
@@ -134,7 +135,6 @@ void main() {
     vec2 uv_current = vec2(screen_pos.x / screen_pos.z, 
                         screen_pos.y / screen_pos.z) * 0.5 + 0.5;
 
-    // out_Velocity = uv_current - uv_prev;
     out_Velocity = uv_current - uv_prev;
     out_Color = color;
 }

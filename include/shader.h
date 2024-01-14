@@ -49,6 +49,7 @@ struct TaaShader
     u32 u_prev_frame;
     u32 u_screen_dimensions;
     u32 u_jitter_index;
+    u32 u_sample_offset;
 };
 
 u32 create_shader(const char* vertex_file, const char* frag_file, u32 flags);
