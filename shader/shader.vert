@@ -25,7 +25,7 @@ uniform mat4 prev_model;
 uniform int jitter_index;
 uniform vec2 screen_dimensions;
 
-float jitter_strength = 0.5;
+float jitter_strength = 0.4;
 
 layout (std140, binding = 2) uniform Halton
 {
@@ -38,8 +38,8 @@ void main() {
     out_pos = world_pos.xyz;
 
     mat4 jitter_mat = mat4(1);
-    jitter_mat[2][0] = halton[jitter_index].x * jitter_strength / screen_dimensions.x;
-    jitter_mat[2][1] = halton[jitter_index].y * jitter_strength / screen_dimensions.y;
+    jitter_mat[2][0] = halton[jitter_index].x * jitter_strength / screen_dimensions.x * 2;
+    jitter_mat[2][1] = halton[jitter_index].y * jitter_strength / screen_dimensions.y * 2;
     gl_Position = jitter_mat * proj_view * world_pos;
 
     prev_screen_pos = (prev_proj_view * prev_model * vec4(aPos, 1)).xyw;

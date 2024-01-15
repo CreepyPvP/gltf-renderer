@@ -7,7 +7,7 @@ uniform sampler2D color_buffer;
 
 void main() 
 {
-    vec2 uv = (pos + 1) / 2;
+    vec2 uv = (pos + 1) * 0.5;
     vec2 pixel = vec2(1) / dimensions;
     vec2 offsets[9] = vec2[](
         vec2(-pixel.x, pixel.y),
