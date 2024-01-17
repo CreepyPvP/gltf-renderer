@@ -71,5 +71,5 @@ void main()
     vec3 prev_sample = texture(prev_frame, prev_uv).rgb;
     prev_sample = clamp(prev_sample, min_color, max_color);
 
-    out_Color = 0.05 * vec4(source_sample, 1) + 0.95 * vec4(prev_sample, 1);
+    out_Color = 0.10 * vec4(source_sample, 1) + 0.90 * vec4(prev_sample, 1);
 }

@@ -20,6 +20,10 @@
 #include <fastgltf/parser.hpp>
 #include <fastgltf/types.hpp>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include "include/shader.h"
 #include "include/arena.h"
 #include "include/scene.h"
@@ -59,8 +63,8 @@ u32 width = 1280;
 u32 height = 720;
 
 GLFWwindow *window;
-float last_mouse_pos_x;
-float last_mouse_pos_y;
+double last_mouse_pos_x;
+double last_mouse_pos_y;
 
 Arena asset_arena;
 
@@ -75,6 +79,9 @@ u32 fbo_textures[4];
 u32 depth_buffer;
 u32 ubos[1];
 
+// 0: game
+// 1: debug
+u32 game_mode = 1;
 
 void setup_framebuffer(bool);
 
@@ -88,14 +95,17 @@ void resize_callback(GLFWwindow *window, i32 new_width, i32 new_height)
 
 void mouse_callback(GLFWwindow* window, double pos_x, double pos_y) 
 {
-    float x_offset = pos_x - last_mouse_pos_x;
-    float y_offset = pos_y - last_mouse_pos_y;
+    if (game_mode == 0) {
+        float x_offset = pos_x - last_mouse_pos_x;
+        float y_offset = pos_y - last_mouse_pos_y;
+        const float sensitivity = 0.1f;
+        x_offset *= sensitivity;
+        y_offset *= sensitivity;
+        camera.process_mouse_input(x_offset, y_offset);
+    }
+
     last_mouse_pos_x = pos_x;
     last_mouse_pos_y = pos_y;
-    const float sensitivity = 0.1f;
-    x_offset *= sensitivity;
-    y_offset *= sensitivity;
-    camera.process_mouse_input(x_offset, y_offset);
 }
 
 void setup_square_vao() {
@@ -472,6 +482,16 @@ void setup_framebuffer(bool do_cleanup)
     glDrawBuffers(2, buffers);
 }
 
+void update_mouse_setting() 
+{
+    if (game_mode == 0) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    } else if (game_mode == 1) {
+
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+}
+
 void init_window() 
 {
     glfwInit();
@@ -484,7 +504,7 @@ void init_window()
     window = glfwCreateWindow(width, height, "YAGE", NULL, NULL);
     glfwSetFramebufferSizeCallback(window, resize_callback);
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    update_mouse_setting();
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwMakeContextCurrent(window);
 }
@@ -517,6 +537,12 @@ i32 main(i32 argc, char** argv)
 
     setup_framebuffer(false);
     setup_square_vao();
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init();
 
     camera.init();
     Scene scene;
@@ -570,15 +596,38 @@ i32 main(i32 argc, char** argv)
     glm::mat4 prev_proj_view = glm::mat4(1.0f);
     glm::mat4 prev_model = glm::mat4(1.0f);
 
+    bool tab_pressed = false;
+
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, true);
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
+            if (!tab_pressed) {
+                if (game_mode == 0) {
+                    game_mode = 1;
+                } else if (game_mode == 1) {
+                    game_mode = 0;
+                }
+                update_mouse_setting();
+            }
+            tab_pressed = true;
+        } else {
+            tab_pressed = false;
         }
 
         float current_time = glfwGetTime();
         delta = current_time - time_last_frame;
         time_last_frame = current_time;
         u32 next_frame = (current_frame + 1) % 2;
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if (game_mode == 1) {
+            ImGui::ShowDemoWindow();
+        }
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbos[2]);
         glEnable(GL_DEPTH_TEST);
@@ -682,6 +731,9 @@ i32 main(i32 argc, char** argv)
         set_vec2(post_shader.u_screen_dimensions, &dimensions);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         current_frame = next_frame;
         jitter_index = (jitter_index + 1) % 128;
         sample_offset = (sample_offset + 1) % 128;
@@ -689,6 +741,10 @@ i32 main(i32 argc, char** argv)
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwDestroyWindow(window);
     glfwTerminate();

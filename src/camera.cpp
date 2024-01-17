@@ -7,8 +7,8 @@
 #define SPEED 10.0f
 
 void Camera::init() {
-    pos = glm::vec3(0, 00, 30);
-    front = glm::vec3(0, 0, -1);
+    pos = glm::vec3(0, 2, 0);
+    front = glm::vec3(-1, 0, 0);
     yaw = 0;
     pitch = 0;
 };
