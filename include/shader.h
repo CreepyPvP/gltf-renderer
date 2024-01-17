@@ -38,6 +38,12 @@ struct PostProcessShader
 {
     u32 id;
     u32 u_screen_dimensions;
+
+    u32 u_sharpness;
+    u32 u_contrast;
+    u32 u_brightness;
+    u32 u_saturation;
+    u32 u_gamma;
 };
 
 struct TaaShader
@@ -61,4 +67,5 @@ void set_mat4(u32 uniform, glm::mat4* mat);
 void set_vec2(u32 uniform, glm::vec2* vec);
 void set_vec4(u32 uniform, glm::vec4* vec);
 void set_vec3(u32 uniform, glm::vec3* vec);
+void set_float(u32 uniform, float value);
 void set_texture(u32 uniform, i32 slot);

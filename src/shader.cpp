@@ -126,6 +126,11 @@ PostProcessShader load_post_shader(const char* vert, const char* frag)
     PostProcessShader shader;
     shader.id = create_shader(vert, frag, 0);
     shader.u_screen_dimensions = glGetUniformLocation(shader.id, "dimensions");
+    shader.u_sharpness = glGetUniformLocation(shader.id, "sharpness");
+    shader.u_contrast = glGetUniformLocation(shader.id, "contrast");
+    shader.u_brightness = glGetUniformLocation(shader.id, "brightness");
+    shader.u_saturation = glGetUniformLocation(shader.id, "saturation");
+    shader.u_gamma = glGetUniformLocation(shader.id, "gamma");
     return shader;
 }
 
@@ -161,6 +166,11 @@ void set_vec4(u32 uniform, glm::vec4* vec)
 void set_vec3(u32 uniform, glm::vec3* vec)
 {
     glUniform3fv(uniform, 1, &(*vec)[0]);
+}
+
+void set_float(u32 uniform, float value) 
+{
+    glUniform1f(uniform, value);
 }
 
 void set_texture(u32 uniform, i32 slot)

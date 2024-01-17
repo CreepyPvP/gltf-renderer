@@ -32,3 +32,8 @@ GL_TRIANGLES hardcoded
 Profiling
 
 Screenspace reflections
+
+
+Ideas to try out:
+Shadow color
+Color remapping

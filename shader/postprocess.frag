@@ -5,33 +5,39 @@ in vec2 pos;
 uniform vec2 dimensions;
 uniform sampler2D color_buffer;
 
+uniform float sharpness;
+uniform float contrast;
+uniform float brightness;
+uniform float saturation;
+uniform float gamma;
+
 void main() 
 {
     vec2 uv = (pos + 1) * 0.5;
     vec2 pixel = vec2(1) / dimensions;
-    vec2 offsets[9] = vec2[](
-        vec2(-pixel.x, pixel.y),
-        vec2(0.0f, pixel.y),
-        vec2(pixel.x,  pixel.y),
-        vec2(-pixel.x, 0.0f),
-        vec2(0.0f, 0.0f),
-        vec2(pixel.x, 0.0f),
-        vec2(-pixel.x, -pixel.y),
-        vec2(0.0f, -pixel.y),
-        vec2(pixel.x, -pixel.y)
-    );
 
-    float kernel[9] = {
-        0,  -1, 0,
-        -1, 5, -1,
-        0,  -1, 0
-    };
-    
-    vec3 col = vec3(0.0);
-    for(int i = 0; i < 9; i++) {
-        col += texture(color_buffer, uv + offsets[i]).rgb * kernel[i];
-    }
+    vec3 top = texture(color_buffer, uv + vec2(0, pixel.y)).rgb;
+    vec3 bot = texture(color_buffer, uv + vec2(0, -pixel.y)).rgb;
+    vec3 left = texture(color_buffer, uv + vec2(-pixel.x, 0)).rgb;
+    vec3 right = texture(color_buffer, uv + vec2(pixel.x, 0)).rgb;
+    vec3 middle = texture(color_buffer, uv).rgb;
 
-    out_Color = vec4(col, 1);
-    // out_Color = texture(color_buffer, uv);
+    vec3 color = middle * (sharpness * 4 + 1) 
+        - sharpness * top
+        - sharpness * bot
+        - sharpness * left
+        - sharpness * right;
+    color = clamp(color, 0, 1);
+
+    color = contrast * (color - 0.5) + 0.5 + brightness;
+    color = clamp(color, 0, 1);
+
+    float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+    color = saturation * color + (1 - saturation) * vec3(luminance);
+    color = clamp(color, 0, 1);
+
+    color = pow(color, vec3(gamma));
+    color = clamp(color, 0, 1);
+
+    out_Color = vec4(color, 1);
 }

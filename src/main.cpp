@@ -585,6 +585,12 @@ i32 main(i32 argc, char** argv)
                                             (float) width / (float) height, 
                                             0.01f, 1000.0f);
 
+    float sharpness = 1;
+    float contrast = 1;
+    float brightness = 0;
+    float saturation = 1;
+    float gamma = 1;
+
     glFrontFace(GL_CCW);
     glClearColor(0, 0, 0, 1);
 
@@ -626,7 +632,11 @@ i32 main(i32 argc, char** argv)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         if (game_mode == 1) {
-            ImGui::ShowDemoWindow();
+            ImGui::SliderFloat("Sharpness", &sharpness, 0.0, 2.0, "%.3f");
+            ImGui::SliderFloat("Contrast", &contrast, 0.0, 2.0, "%.3f");
+            ImGui::SliderFloat("Brightness", &brightness, -1.0, 1.0, "%.3f");
+            ImGui::SliderFloat("Saturation", &saturation, 0.0, 6.0, "%.3f");
+            ImGui::SliderFloat("Gamma", &gamma, 0.001, 2.0, "%.3f");
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbos[2]);
@@ -704,7 +714,6 @@ i32 main(i32 argc, char** argv)
         glBindVertexArray(square_vao);
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbos[current_frame]);
-        // glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(taa_shader.id);
         set_texture(taa_shader.u_jitter_index, jitter_index);
         set_texture(taa_shader.u_sample_offset, sample_offset);
@@ -724,11 +733,15 @@ i32 main(i32 argc, char** argv)
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(post_shader.id);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, fbo_textures[current_frame]);
         set_vec2(post_shader.u_screen_dimensions, &dimensions);
+        set_float(post_shader.u_sharpness, sharpness);
+        set_float(post_shader.u_contrast, contrast);
+        set_float(post_shader.u_brightness, brightness);
+        set_float(post_shader.u_saturation, saturation);
+        set_float(post_shader.u_gamma, gamma);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         ImGui::Render();
