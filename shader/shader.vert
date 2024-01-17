@@ -37,10 +37,12 @@ void main() {
     vec4 world_pos = model * vec4(aPos, 1);
     out_pos = world_pos.xyz;
 
-    mat4 jitter_mat = mat4(1);
-    jitter_mat[2][0] = halton[jitter_index].x * jitter_strength / screen_dimensions.x * 2;
-    jitter_mat[2][1] = halton[jitter_index].y * jitter_strength / screen_dimensions.y * 2;
-    gl_Position = jitter_mat * proj_view * world_pos;
+    // mat4 jitter_mat = mat4(1);
+    // jitter_mat[2][0] = halton[jitter_index].x * jitter_strength / screen_dimensions.x * 2;
+    // jitter_mat[2][1] = halton[jitter_index].y * jitter_strength / screen_dimensions.y * 2;
+    // gl_Position = jitter_mat * proj_view * world_pos;
+    gl_Position = proj_view * world_pos;
+    gl_Position.rg -= halton[jitter_index] * jitter_strength / screen_dimensions * 2 * gl_Position.w;
 
     prev_screen_pos = (prev_proj_view * prev_model * vec4(aPos, 1)).xyw;
     screen_pos = (proj_view * world_pos).xyw;

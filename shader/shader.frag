@@ -136,5 +136,6 @@ void main() {
                         screen_pos.y / screen_pos.z) * 0.5 + 0.5;
 
     out_Velocity = uv_current - uv_prev;
+    // out_Velocity = uv_prev;
     out_Color = color;
 }

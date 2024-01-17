@@ -43,6 +43,7 @@ IF (WIN32)
         
         ${SIMDJSON_ROOT_DIR}/simdjson.cpp
     )
+
 ELSE()
     # Linux libraries:
     set(LIBS glfw X11 glm glad)
